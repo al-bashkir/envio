@@ -8,12 +8,12 @@ pull requests for bug fixes and features will only be accepted if the approach h
 
 Please keep the following in mind at all times:
 
-* Check existing issues to verify that the [`bug`](https://github.com/envio-cli/envio/labels/bug) or [`feature request`](https://github.com/envio-cli/envio/labels/feature%20request) has not already been submitted.
+* Check existing issues to verify that the [`bug`](https://github.com/al-bashkir/envio/labels/bug) or [`feature request`](https://github.com/al-bashkir/envio/labels/feature%20request) has not already been submitted.
 * Open an issue if things aren't working as expected.
 * Open an issue to propose a significant change.
 * Open a pull request to fix a bug.
 
-* Open a pull request for any issue labelled [`help wanted`](https://github.com/envio-cli/envio/labels/help%20wanted), [`good first issue`](https://github.com/envio-cli/envio/labels/good%20first%20issue) or [`community`](https://github.com/envio-cli/envio/labels/community).
+* Open a pull request for any issue labelled [`help wanted`](https://github.com/al-bashkir/envio/labels/help%20wanted), [`good first issue`](https://github.com/al-bashkir/envio/labels/good%20first%20issue) or [`community`](https://github.com/al-bashkir/envio/labels/community).
 
 Please avoid:
 

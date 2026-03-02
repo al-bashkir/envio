@@ -4,8 +4,8 @@ version = "0.6.1"
 rust-version = "1.75.0"
 description = "A Modern And Secure CLI Tool For Managing Environment Variables"
 edition = "2021"
-authors = ["Humble Penguin <humblepenguinn@gmail.com>"]
-repository = "https://github.com/humblepenguinn/envio/"
+authors = ["Al Bashkir <41126916+al-bashkir@users.noreply.github.com>"]
+repository = "https://github.com/al-bashkir/envio/"
 license = "MIT/Apache-2.0"
 readme = "README.md"
 
