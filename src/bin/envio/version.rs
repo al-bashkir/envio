@@ -155,7 +155,7 @@ fn run_fetch_version_from_github_api() -> Option<Version> {
 }
 
 async fn fetch_version_from_github_api() -> Option<Version> {
-    let url = "https://api.github.com/repos/humblepenguinn/envio/releases/latest";
+    let url = "https://api.github.com/repos/al-bashkir/envio/releases/latest";
     let client = reqwest::Client::new();
     let res = if let Ok(val) = client.get(url).header("User-Agent", "envio").send().await {
         val
@@ -199,7 +199,7 @@ fn fetch_version_from_git() -> Option<Version> {
         return None;
     }
 
-    let owner = "humblepenguinn";
+    let owner = "al-bashkir";
     let repo = "envio";
     let output = Command::new("git")
         .arg("ls-remote")
