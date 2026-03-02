@@ -6,16 +6,15 @@
 <div align="center">
   <h2 align="center">A Modern And Secure CLI Tool For Managing Environment Variables</h2>
 
-  [![CICD](https://github.com/humblepenguinn/envio/actions/workflows/CICD.yml/badge.svg)](https://github.com/humblepenguinn/envio/workflows/CICD.yml)
+  [![CICD](https://github.com/al-bashkir/envio/actions/workflows/CICD.yml/badge.svg)](https://github.com/al-bashkir/envio/actions/workflows/CICD.yml)
   [![Version info](https://img.shields.io/crates/v/envio.svg)](https://crates.io/crates/envio)
-  [![Visit Official Site](https://img.shields.io/badge/Visit-Official%20Site-blue)](https://envio-cli.github.io/home)
 </div>
 
 <div align='center'>
   <img alt="Demo" src="assets/envio-passphrase-final.gif" width="600">
 </div>
 
-<div align='center'>To see the GPG encryption demo go <a href="https://github.com/envio-cli/envio/blob/main/assets/envio-gpg-final.gif">here</a></div>
+<div align='center'>To see the GPG encryption demo go <a href="https://github.com/al-bashkir/envio/blob/main/assets/envio-gpg-final.gif">here</a></div>
 
 ## About
 
@@ -30,7 +29,7 @@ Some key features of `envio` include:
 - **Importing** profiles stored on the internet into your local installation
 - **Exporting** profiles to a file
 
-Sound interesting? Check out the [official website](https://envio-cli.github.io/home) for more information such as how to **install** and **use** the tool on your machine.
+Sound interesting? Check out the [repository](https://github.com/al-bashkir/envio) for more information on how to **install** and **use** the tool.
 
 `envio` currently supports **Linux**, **MacOS** and **Windows**
 
@@ -39,9 +38,9 @@ Sound interesting? Check out the [official website](https://envio-cli.github.io/
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Vojtch159"><img src="https://avatars.githubusercontent.com/u/73985038?v=4?s=100" width="100px;" alt="Vojtch"/><br /><sub><b>Vojtch</b></sub></a><br /><a href="https://github.com/humblepenguinn/envio/commits?author=Vojtch159" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/erjanmx"><img src="https://avatars.githubusercontent.com/u/4899432?v=4?s=100" width="100px;" alt="Erjan Kalybek"/><br /><sub><b>Erjan Kalybek</b></sub></a><br /><a href="https://github.com/humblepenguinn/envio/commits?author=erjanmx" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/afh"><img src="https://avatars.githubusercontent.com/u/16507?v=4?s=100" width="100px;" alt="Alexis Hildebrandt"/><br /><sub><b>Alexis Hildebrandt</b></sub></a><br /><a href="https://github.com/humblepenguinn/envio/commits?author=afh" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Vojtch159"><img src="https://avatars.githubusercontent.com/u/73985038?v=4?s=100" width="100px;" alt="Vojtch"/><br /><sub><b>Vojtch</b></sub></a><br /><a href="https://github.com/al-bashkir/envio/commits?author=Vojtch159" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/erjanmx"><img src="https://avatars.githubusercontent.com/u/4899432?v=4?s=100" width="100px;" alt="Erjan Kalybek"/><br /><sub><b>Erjan Kalybek</b></sub></a><br /><a href="https://github.com/al-bashkir/envio/commits?author=erjanmx" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/afh"><img src="https://avatars.githubusercontent.com/u/16507?v=4?s=100" width="100px;" alt="Alexis Hildebrandt"/><br /><sub><b>Alexis Hildebrandt</b></sub></a><br /><a href="https://github.com/al-bashkir/envio/commits?author=afh" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
