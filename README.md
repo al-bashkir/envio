@@ -7,7 +7,6 @@
   <h2 align="center">A Modern And Secure CLI Tool For Managing Environment Variables</h2>
 
   [![CICD](https://github.com/al-bashkir/envio/actions/workflows/CICD.yml/badge.svg)](https://github.com/al-bashkir/envio/actions/workflows/CICD.yml)
-  [![Version info](https://img.shields.io/crates/v/envio.svg)](https://crates.io/crates/envio)
 </div>
 
 <div align='center'>
