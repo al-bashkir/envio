@@ -718,6 +718,13 @@ impl Command {
                     println!("{} {}", "Version".green(), env!("BUILD_VERSION"));
                 }
             }
+
+            Command::Completion { shell } => {
+                use clap::CommandFactory;
+                use clap_complete::generate;
+                let mut cmd = crate::clap_app::ClapApp::command();
+                generate(*shell, &mut cmd, "envio", &mut std::io::stdout());
+            }
         }
 
         Ok(())
