@@ -1,4 +1,5 @@
 use clap::Parser;
+use clap_complete::Shell;
 
 #[derive(Parser, Debug)]
 
@@ -177,6 +178,15 @@ pub enum Command {
     Version {
         #[arg(required = false, long = "verbose", short = 'v')]
         verbose: bool,
+    },
+    #[command(
+        name = "completion",
+        about = "Generate shell completion scripts",
+        override_usage = "envio completion <SHELL>"
+    )]
+    Completion {
+        #[arg(required = true, value_enum)]
+        shell: Shell,
     },
 }
 
