@@ -3,13 +3,55 @@ use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 use std::process::Command;
 
-use bincode::{deserialize_from, serialize_into};
+use bincode::Options;
 use chrono::{Duration, Utc};
 use colored::Colorize;
 use dirs::cache_dir;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Builder;
+
+const CACHE_BINC_LIMIT_BYTES: u64 = 4 * 1024;
+
+fn cache_bincode_opts_fixint() -> impl Options {
+    bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .allow_trailing_bytes()
+        .with_limit(CACHE_BINC_LIMIT_BYTES)
+}
+
+fn cache_bincode_opts_varint() -> impl Options {
+    bincode::DefaultOptions::new()
+        .with_varint_encoding()
+        .allow_trailing_bytes()
+        .with_limit(CACHE_BINC_LIMIT_BYTES)
+}
+
+fn read_cache_data(cache_file: &PathBuf) -> Option<CacheData> {
+    let file = File::open(cache_file).ok()?;
+    let reader = BufReader::new(file);
+
+    if let Ok(data) = cache_bincode_opts_fixint().deserialize_from(reader) {
+        return Some(data);
+    }
+
+    let file = File::open(cache_file).ok()?;
+    let reader = BufReader::new(file);
+
+    if let Ok(data) = cache_bincode_opts_varint().deserialize_from(reader) {
+        // Best-effort migration to the current cache format.
+        let _ = write_cache_data(cache_file, &data);
+        return Some(data);
+    }
+
+    None
+}
+
+fn write_cache_data(cache_file: &PathBuf, cache_data: &CacheData) -> Result<(), bincode::Error> {
+    let file = File::create(cache_file)?;
+    let mut writer = BufWriter::new(file);
+    cache_bincode_opts_fixint().serialize_into(&mut writer, cache_data)
+}
 
 #[derive(Serialize, Deserialize)]
 struct CacheData {
@@ -52,35 +94,28 @@ pub fn get_latest_version() -> Version {
         cache_dir
     } else {
         println!("{}: Using 0.0.0 as fallback version", "Warning".yellow());
-        return Version::parse("0.1.0").unwrap();
+        return Version::parse("0.0.0").unwrap();
     };
 
     let cache_file = cache_dir.join("cache.bin");
 
-    let cache_data: CacheData = match File::open(&cache_file) {
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            deserialize_from(reader).unwrap()
+    let cache_data: CacheData = if let Some(data) = read_cache_data(&cache_file) {
+        data
+    } else {
+        // Cache file either doesn't exist or is not readable.
+        // If it's corrupted or from an older encoding, remove it and recreate.
+        let _ = std::fs::remove_file(&cache_file);
+
+        let cache_data = CacheData {
+            version: fetch_latest_version("0.0.0").to_string(),
+            last_update_time: Utc::now(),
+        };
+
+        if let Err(e) = write_cache_data(&cache_file, &cache_data) {
+            println!("{}: Failed to write cache file: {}", "Error".red(), e);
         }
-        Err(_) => {
-            let file = if let Ok(file) = File::create(&cache_file) {
-                file
-            } else {
-                println!("{}: Failed to create cache file", "Error".red());
-                println!("{}: Using 0.0.0 as fallback version", "Warning".yellow());
-                return Version::parse("0.0.0").unwrap();
-            };
 
-            let mut writer = BufWriter::new(file);
-            let cache_data = CacheData {
-                version: fetch_latest_version("0.0.0").to_string(),
-                last_update_time: Utc::now(),
-            };
-
-            serialize_into(&mut writer, &cache_data).unwrap();
-
-            cache_data
-        }
+        cache_data
     };
 
     let seven_days_ago = Utc::now() - Duration::days(7);
@@ -92,17 +127,11 @@ pub fn get_latest_version() -> Version {
         new_cache_data.last_update_time = Utc::now();
         new_cache_data.version = latest_version.to_string();
 
-        match File::create(&cache_file) {
-            Ok(file) => {
-                let mut writer = BufWriter::new(file);
-                serialize_into(&mut writer, &new_cache_data).unwrap();
-            }
-            Err(e) => {
-                println!("{}: Failed to create cache file: {}", "Error".red(), e);
-                println!("{}: Using 0.0.0 as fallback version", "Warning".yellow());
-                return Version::parse("0.0.0").unwrap();
-            }
-        };
+        if let Err(e) = write_cache_data(&cache_file, &new_cache_data) {
+            println!("{}: Failed to write cache file: {}", "Error".red(), e);
+            println!("{}: Using 0.0.0 as fallback version", "Warning".yellow());
+            return Version::parse("0.0.0").unwrap();
+        }
 
         latest_version
     } else if let Ok(version) = Version::parse(&cache_data.version) {
