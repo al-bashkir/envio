@@ -13,14 +13,6 @@ on:
       - "Cargo.lock"
       - "build.rs"
   push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - ".github/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "build.rs"
     tags:
       - "v*"
 
