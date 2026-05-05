@@ -22,6 +22,25 @@ use crate::utils::{contains_path_separator, download_file, get_configdir, get_cw
 #[cfg(target_family = "unix")]
 use crate::utils::get_shell_config;
 
+/// Wrap a value in single quotes safe for POSIX shells and fish.
+/// Each embedded `'` is replaced with `'\''` (close-quote, literal `\'`, reopen).
+/// Inside single quotes, no expansion happens, so this is safe for the values
+/// of environment variables emitted to bash/zsh/fish.
+#[cfg(target_family = "unix")]
+pub(crate) fn sh_quote(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('\'');
+    for c in value.chars() {
+        if c == '\'' {
+            out.push_str("'\\''");
+        } else {
+            out.push(c);
+        }
+    }
+    out.push('\'');
+    out
+}
+
 /// Create a new profile which is stored in the profiles directory
 ///
 /// # Parameters
@@ -515,4 +534,49 @@ pub fn unload_profile(profile: Profile) -> Result<()> {
     println!("Reload your shell to apply changes");
 
     Ok(())
+}
+
+#[cfg(all(test, target_family = "unix"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sh_quote_plain() {
+        assert_eq!(sh_quote("hello"), "'hello'");
+    }
+
+    #[test]
+    fn sh_quote_empty() {
+        assert_eq!(sh_quote(""), "''");
+    }
+
+    #[test]
+    fn sh_quote_spaces() {
+        assert_eq!(sh_quote("with spaces"), "'with spaces'");
+    }
+
+    #[test]
+    fn sh_quote_single_quote() {
+        assert_eq!(sh_quote("it's a test"), "'it'\\''s a test'");
+    }
+
+    #[test]
+    fn sh_quote_double_quote() {
+        assert_eq!(sh_quote("he said \"hi\""), "'he said \"hi\"'");
+    }
+
+    #[test]
+    fn sh_quote_dollar_backtick_backslash() {
+        assert_eq!(sh_quote("$VAR `cmd` \\n"), "'$VAR `cmd` \\n'");
+    }
+
+    #[test]
+    fn sh_quote_only_quote() {
+        assert_eq!(sh_quote("'"), "''\\'''");
+    }
+
+    #[test]
+    fn sh_quote_consecutive_quotes() {
+        assert_eq!(sh_quote("a''b"), "'a'\\'''\\''b'");
+    }
 }
