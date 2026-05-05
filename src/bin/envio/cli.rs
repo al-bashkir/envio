@@ -41,6 +41,42 @@ pub(crate) fn sh_quote(value: &str) -> String {
     out
 }
 
+/// Write `export NAME=<quoted>` (bash/zsh/other) or `set -gx NAME <quoted>`
+/// (fish) lines for every env in the profile.
+#[cfg(target_family = "unix")]
+pub(crate) fn write_exports<W: std::io::Write>(
+    w: &mut W,
+    profile: &Profile,
+    shell: crate::utils::Shell,
+) -> Result<()> {
+    use crate::utils::Shell;
+    for env in &profile.envs {
+        match shell {
+            Shell::Fish => writeln!(w, "set -gx {} {}", env.name, sh_quote(&env.value))?,
+            _ => writeln!(w, "export {}={}", env.name, sh_quote(&env.value))?,
+        }
+    }
+    Ok(())
+}
+
+/// Write `unset NAME` (bash/zsh/other) or `set -e NAME` (fish) lines for every
+/// env in the profile.
+#[cfg(target_family = "unix")]
+pub(crate) fn write_unsets<W: std::io::Write>(
+    w: &mut W,
+    profile: &Profile,
+    shell: crate::utils::Shell,
+) -> Result<()> {
+    use crate::utils::Shell;
+    for env in &profile.envs {
+        match shell {
+            Shell::Fish => writeln!(w, "set -e {}", env.name)?,
+            _ => writeln!(w, "unset {}", env.name)?,
+        }
+    }
+    Ok(())
+}
+
 /// Create a new profile which is stored in the profiles directory
 ///
 /// # Parameters
@@ -539,6 +575,85 @@ pub fn unload_profile(profile: Profile) -> Result<()> {
 #[cfg(all(test, target_family = "unix"))]
 mod tests {
     use super::*;
+    use crate::utils::Shell;
+    use envio::{Env, EnvVec, Profile};
+    use std::path::PathBuf;
+
+    fn fixture_profile() -> Profile {
+        let mut envs = EnvVec::new();
+        envs.push(Env::from_key_value("FOO".into(), "bar".into()));
+        envs.push(Env::from_key_value("BAZ".into(), "qu ux".into()));
+        envs.push(Env::from_key_value("Q".into(), "it's".into()));
+        let enc = envio::crypto::create_encryption_type("x".repeat(8), "age").unwrap();
+        Profile::new(
+            "fixture".to_string(),
+            envs,
+            PathBuf::from("/tmp/fixture.env"),
+            enc,
+        )
+    }
+
+    #[test]
+    fn write_exports_bash() {
+        let p = fixture_profile();
+        let mut buf: Vec<u8> = Vec::new();
+        write_exports(&mut buf, &p, Shell::Bash).unwrap();
+        let s = String::from_utf8(buf).unwrap();
+        assert_eq!(
+            s,
+            "export FOO='bar'\nexport BAZ='qu ux'\nexport Q='it'\\''s'\n"
+        );
+    }
+
+    #[test]
+    fn write_exports_zsh_matches_bash() {
+        let p = fixture_profile();
+        let mut bash_buf: Vec<u8> = Vec::new();
+        let mut zsh_buf: Vec<u8> = Vec::new();
+        write_exports(&mut bash_buf, &p, Shell::Bash).unwrap();
+        write_exports(&mut zsh_buf, &p, Shell::Zsh).unwrap();
+        assert_eq!(bash_buf, zsh_buf);
+    }
+
+    #[test]
+    fn write_exports_other_falls_back_to_bash() {
+        let p = fixture_profile();
+        let mut bash_buf: Vec<u8> = Vec::new();
+        let mut other_buf: Vec<u8> = Vec::new();
+        write_exports(&mut bash_buf, &p, Shell::Bash).unwrap();
+        write_exports(&mut other_buf, &p, Shell::Other).unwrap();
+        assert_eq!(bash_buf, other_buf);
+    }
+
+    #[test]
+    fn write_exports_fish() {
+        let p = fixture_profile();
+        let mut buf: Vec<u8> = Vec::new();
+        write_exports(&mut buf, &p, Shell::Fish).unwrap();
+        let s = String::from_utf8(buf).unwrap();
+        assert_eq!(
+            s,
+            "set -gx FOO 'bar'\nset -gx BAZ 'qu ux'\nset -gx Q 'it'\\''s'\n"
+        );
+    }
+
+    #[test]
+    fn write_unsets_bash() {
+        let p = fixture_profile();
+        let mut buf: Vec<u8> = Vec::new();
+        write_unsets(&mut buf, &p, Shell::Bash).unwrap();
+        let s = String::from_utf8(buf).unwrap();
+        assert_eq!(s, "unset FOO\nunset BAZ\nunset Q\n");
+    }
+
+    #[test]
+    fn write_unsets_fish() {
+        let p = fixture_profile();
+        let mut buf: Vec<u8> = Vec::new();
+        write_unsets(&mut buf, &p, Shell::Fish).unwrap();
+        let s = String::from_utf8(buf).unwrap();
+        assert_eq!(s, "set -e FOO\nset -e BAZ\nset -e Q\n");
+    }
 
     #[test]
     fn sh_quote_plain() {
