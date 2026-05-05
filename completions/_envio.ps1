@@ -34,6 +34,7 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export a profile to a file if no file is specified it will be exported to a file named .env')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Download a profile over the internet and import it into the system or import a locally stored profile into your current envio installation')
             [CompletionResult]::new('version', 'version', [CompletionResultType]::ParameterValue, 'Print the version')
+            [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completion scripts')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
@@ -140,6 +141,11 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
+        'envio;completion' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
         'envio;help' {
             [CompletionResult]::new('create', 'create', [CompletionResultType]::ParameterValue, 'Create a new profile')
             [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Add envionment variables to a profile')
@@ -152,6 +158,7 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export a profile to a file if no file is specified it will be exported to a file named .env')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Download a profile over the internet and import it into the system or import a locally stored profile into your current envio installation')
             [CompletionResult]::new('version', 'version', [CompletionResultType]::ParameterValue, 'Print the version')
+            [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completion scripts')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
@@ -186,6 +193,9 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;help;version' {
+            break
+        }
+        'envio;help;completion' {
             break
         }
         'envio;help;help' {

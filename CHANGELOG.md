@@ -1,4 +1,32 @@
 # Change Log
+
+# Unreleased
+
+## BREAKING CHANGES
+
+* `envio load` now writes shell directives to stdout. Wrap with `eval "$(envio load <profile>)"` (bash/zsh) or `envio load <profile> | source` (fish). It no longer modifies any files or your shell rc.
+* `envio unload` now requires a `<profile_name>` argument on Unix (Windows already required it). Output goes to stdout; wrap the same way as `load`.
+* `~/.envio/setenv.sh` is no longer created or used. Existing files can be deleted: `rm ~/.envio/setenv.sh`.
+
+## Migration for existing users
+
+Older versions of `envio` appended a block like the following to your shell rc on first run:
+
+```
+# envio DO NOT MODIFY
+source ~/.envio/setenv.sh
+```
+
+(For fish users: `bass source ~/.envio/setenv.sh`.)
+
+With this version `~/.envio/setenv.sh` is no longer written, so that line points to a missing file and your shell will print a `No such file or directory` error on every new shell. Remove the `# envio DO NOT MODIFY` line and the `source ...` (or `bass source ...`) line that follows it from:
+
+* `~/.bashrc`
+* `~/.zshrc`
+* `~/.config/fish/config.fish`
+
+(Only the file matching your shell will have the block.) After removing the lines, start a new shell — the error should be gone.
+
 # v0.6.1
 ## Features
 * Users can now pass in the `-v` (or `--update-values`) argument to optionally update the values of their envs in the `update` command

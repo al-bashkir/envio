@@ -15,6 +15,9 @@ _envio() {
             envio,add)
                 cmd="envio__add"
                 ;;
+            envio,completion)
+                cmd="envio__completion"
+                ;;
             envio,create)
                 cmd="envio__create"
                 ;;
@@ -50,6 +53,9 @@ _envio() {
                 ;;
             envio__help,add)
                 cmd="envio__help__add"
+                ;;
+            envio__help,completion)
+                cmd="envio__help__completion"
                 ;;
             envio__help,create)
                 cmd="envio__help__create"
@@ -91,7 +97,7 @@ _envio() {
 
     case "${cmd}" in
         envio)
-            opts="-h --help create add load unload launch remove list update export import version help"
+            opts="-h --help create add load unload launch remove list update export import version completion help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -119,6 +125,20 @@ _envio() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        envio__completion)
+            opts="-h --help bash elvish fish powershell zsh"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;
@@ -195,7 +215,7 @@ _envio() {
             return 0
             ;;
         envio__help)
-            opts="create add load unload launch remove list update export import version help"
+            opts="create add load unload launch remove list update export import version completion help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -209,6 +229,20 @@ _envio() {
             return 0
             ;;
         envio__help__add)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        envio__help__completion)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -487,7 +521,7 @@ _envio() {
             return 0
             ;;
         envio__unload)
-            opts="-h --help"
+            opts="-h --help <PROFILE_NAME>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

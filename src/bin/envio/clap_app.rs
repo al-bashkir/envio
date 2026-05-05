@@ -72,10 +72,6 @@ pub enum Command {
         #[arg(required = true)]
         profile_name: String,
     },
-    #[cfg(target_family = "unix")]
-    #[command(name = "unload", about = "Unload a profile")]
-    Unload,
-    #[cfg(target_family = "windows")]
     #[command(name = "unload", about = "Unload a profile")]
     Unload {
         #[arg(required = true)]

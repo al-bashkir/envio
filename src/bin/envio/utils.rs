@@ -8,83 +8,52 @@ use envio::{Env, EnvVec};
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 
+/// Shell flavor used for selecting the syntax of `export`/`unset` output.
+#[cfg(target_family = "unix")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shell {
+    Bash,
+    Zsh,
+    Fish,
+    /// Any other POSIX-ish shell. Treated as bash syntax for output.
+    Other,
+}
+
+#[cfg(target_family = "unix")]
+impl Shell {
+    /// Map a shell binary path (the value of `$SHELL`) to a `Shell`.
+    /// Match on the basename: `bash`, `zsh`, `fish`. Anything else is `Other`.
+    pub fn from_shell_path(path: &str) -> Shell {
+        let basename = path.rsplit('/').next().unwrap_or("");
+        if basename.contains("bash") {
+            Shell::Bash
+        } else if basename.contains("zsh") {
+            Shell::Zsh
+        } else if basename.contains("fish") {
+            Shell::Fish
+        } else {
+            Shell::Other
+        }
+    }
+}
+
+/// Detect the user's shell from the `$SHELL` environment variable.
+/// Falls back to `Shell::Other` if `$SHELL` is unset or unrecognized.
+#[cfg(target_family = "unix")]
+pub fn detect_shell() -> Shell {
+    match std::env::var("SHELL") {
+        Ok(path) => Shell::from_shell_path(&path),
+        Err(_) => Shell::Other,
+    }
+}
+
 #[cfg(target_family = "unix")]
 pub fn initalize_config() -> Result<()> {
-    use colored::Colorize;
-    use inquire::Text;
-    use std::path::Path;
-
     let configdir = get_configdir()?;
-    let homedir = get_homedir()?;
-
-    if !Path::new(&configdir).exists() {
-        println!("{}", "Creating config directory".bold());
-
+    if !configdir.exists() {
         std::fs::create_dir(&configdir)?;
         std::fs::create_dir(configdir.join("profiles"))?;
     }
-
-    if !Path::new(&configdir.join("setenv.sh")).exists() {
-        println!("{}", "Creating shellscript".bold());
-        std::fs::write(configdir.join("setenv.sh"), "")?;
-
-        let shellconfig = get_shell_config()?;
-
-        let mut file_path =
-            PathBuf::from(&(homedir.to_str().unwrap().to_owned() + &format!("/{}", shellconfig)));
-        if !file_path.exists() {
-            let input = Text::new(
-                "Shell config file not found, please enter the path to your shell config file:",
-            )
-            .prompt();
-
-            file_path = if let Ok(val) = input {
-                PathBuf::from(val)
-            } else {
-                return Err(Error::Msg(
-                    "Failed to get shell config file path".to_string(),
-                ));
-            };
-
-            if !file_path.exists() {
-                return Err(Error::Msg(
-                    "Specified shell config file does not exist".to_string(),
-                ));
-            }
-        }
-
-        let mut file = std::fs::OpenOptions::new()
-            .append(true)
-            .open(file_path)
-            .unwrap();
-
-        let shellscript_path = &configdir.join("setenv.sh");
-
-        let buffer = if shellconfig.contains("fish") {
-            println!(
-                    "To use the shellscript properly you need to install the {}(https://github.com/edc/bass) plugin for fish",
-                    "bass".bold()
-                );
-            format!(
-                "
-# envio DO NOT MODIFY
-bass source {}
-",
-                shellscript_path.to_str().unwrap()
-            )
-        } else {
-            format!(
-                "
-#envio DO NOT MODIFY
-source {}
-",
-                shellscript_path.to_str().unwrap()
-            )
-        };
-
-        writeln!(file, "{}", buffer)?
-    }
-
     Ok(())
 }
 /// Get the home directory
@@ -197,32 +166,31 @@ pub async fn download_file(url: &str, file_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Unix specific code
-/// Returns the shell that is being used
-///
-/// # Returns
-/// - `Result<&'static str>`: the shell that is being used
-#[cfg(target_family = "unix")]
-pub fn get_shell_config() -> Result<&'static str> {
-    // Gets your default shell
-    // This is used to determine which shell config file to edit
-    let shell_env_value = if let Ok(e) = std::env::var("SHELL") {
-        e
-    } else {
-        return Err(Error::Msg("Failed to get shell".to_string()));
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let shell_as_vec = shell_env_value.split('/').collect::<Vec<&str>>();
-    let shell = shell_as_vec[shell_as_vec.len() - 1];
-
-    let mut shell_config = "";
-    if shell.contains("bash") {
-        shell_config = ".bashrc";
-    } else if shell.contains("zsh") {
-        shell_config = ".zshrc";
-    } else if shell.contains("fish") {
-        shell_config = ".config/fish/config.fish"
+    #[test]
+    fn shell_from_path_bash() {
+        assert_eq!(Shell::from_shell_path("/bin/bash"), Shell::Bash);
+        assert_eq!(Shell::from_shell_path("/usr/local/bin/bash"), Shell::Bash);
     }
 
-    Ok(shell_config)
+    #[test]
+    fn shell_from_path_zsh() {
+        assert_eq!(Shell::from_shell_path("/bin/zsh"), Shell::Zsh);
+        assert_eq!(Shell::from_shell_path("/usr/bin/zsh-5.9"), Shell::Zsh);
+    }
+
+    #[test]
+    fn shell_from_path_fish() {
+        assert_eq!(Shell::from_shell_path("/usr/bin/fish"), Shell::Fish);
+    }
+
+    #[test]
+    fn shell_from_path_other() {
+        assert_eq!(Shell::from_shell_path("/bin/sh"), Shell::Other);
+        assert_eq!(Shell::from_shell_path("/usr/bin/dash"), Shell::Other);
+        assert_eq!(Shell::from_shell_path(""), Shell::Other);
+    }
 }
