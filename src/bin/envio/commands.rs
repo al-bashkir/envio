@@ -395,32 +395,15 @@ impl Command {
             }
 
             Command::Load { profile_name } => {
-                #[cfg(target_family = "unix")]
-                {
-                    cli::load_profile(profile_name)?;
+                if !Profile::does_exist(profile_name) {
+                    return Err(Error::ProfileDoesNotExist(profile_name.to_string()));
                 }
 
-                #[cfg(target_family = "windows")]
-                {
-                    if !Profile::does_exist(profile_name) {
-                        return Err(Error::ProfileDoesNotExist(profile_name.to_string()));
-                    }
-
-                    let profile = load_profile!(profile_name, get_userkey)?;
-                    check_expired_envs(&profile);
-
-                    if let Err(e) = cli::load_profile(profile) {
-                        return Err(e);
-                    }
-                }
+                let profile = load_profile!(profile_name, get_userkey)?;
+                check_expired_envs(&profile);
+                cli::load_profile(profile)?;
             }
 
-            #[cfg(target_family = "unix")]
-            Command::Unload => {
-                cli::unload_profile()?;
-            }
-
-            #[cfg(target_family = "windows")]
             Command::Unload { profile_name } => {
                 if !Profile::does_exist(profile_name) {
                     return Err(Error::ProfileDoesNotExist(profile_name.to_string()));
@@ -428,10 +411,7 @@ impl Command {
 
                 let profile = load_profile!(profile_name, get_userkey)?;
                 check_expired_envs(&profile);
-
-                if let Err(e) = cli::unload_profile(profile) {
-                    return Err(e);
-                }
+                cli::unload_profile(profile)?;
             }
             Command::Launch {
                 profile_name,
