@@ -8,6 +8,45 @@ use envio::{Env, EnvVec};
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 
+/// Shell flavor used for selecting the syntax of `export`/`unset` output.
+#[cfg(target_family = "unix")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shell {
+    Bash,
+    Zsh,
+    Fish,
+    /// Any other POSIX-ish shell. Treated as bash syntax for output.
+    Other,
+}
+
+#[cfg(target_family = "unix")]
+impl Shell {
+    /// Map a shell binary path (the value of `$SHELL`) to a `Shell`.
+    /// Match on the basename: `bash`, `zsh`, `fish`. Anything else is `Other`.
+    pub fn from_shell_path(path: &str) -> Shell {
+        let basename = path.rsplit('/').next().unwrap_or("");
+        if basename.contains("bash") {
+            Shell::Bash
+        } else if basename.contains("zsh") {
+            Shell::Zsh
+        } else if basename.contains("fish") {
+            Shell::Fish
+        } else {
+            Shell::Other
+        }
+    }
+}
+
+/// Detect the user's shell from the `$SHELL` environment variable.
+/// Falls back to `Shell::Other` if `$SHELL` is unset or unrecognized.
+#[cfg(target_family = "unix")]
+pub fn detect_shell() -> Shell {
+    match std::env::var("SHELL") {
+        Ok(path) => Shell::from_shell_path(&path),
+        Err(_) => Shell::Other,
+    }
+}
+
 #[cfg(target_family = "unix")]
 pub fn initalize_config() -> Result<()> {
     use colored::Colorize;
@@ -225,4 +264,33 @@ pub fn get_shell_config() -> Result<&'static str> {
     }
 
     Ok(shell_config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shell_from_path_bash() {
+        assert_eq!(Shell::from_shell_path("/bin/bash"), Shell::Bash);
+        assert_eq!(Shell::from_shell_path("/usr/local/bin/bash"), Shell::Bash);
+    }
+
+    #[test]
+    fn shell_from_path_zsh() {
+        assert_eq!(Shell::from_shell_path("/bin/zsh"), Shell::Zsh);
+        assert_eq!(Shell::from_shell_path("/usr/bin/zsh-5.9"), Shell::Zsh);
+    }
+
+    #[test]
+    fn shell_from_path_fish() {
+        assert_eq!(Shell::from_shell_path("/usr/bin/fish"), Shell::Fish);
+    }
+
+    #[test]
+    fn shell_from_path_other() {
+        assert_eq!(Shell::from_shell_path("/bin/sh"), Shell::Other);
+        assert_eq!(Shell::from_shell_path("/usr/bin/dash"), Shell::Other);
+        assert_eq!(Shell::from_shell_path(""), Shell::Other);
+    }
 }
