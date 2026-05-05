@@ -32,6 +32,21 @@ Sound interesting? Check out the [repository](https://github.com/al-bashkir/envi
 
 `envio` currently supports **Linux**, **MacOS** and **Windows**
 
+## Loading a profile
+
+`envio load` and `envio unload` print shell directives to stdout. Source them with `eval` (bash/zsh) or pipe to `source` (fish):
+
+```sh
+# bash / zsh
+eval "$(envio load my-profile)"
+
+# fish
+envio load my-profile | source
+
+# unload (same wrapper, in either shell)
+eval "$(envio unload my-profile)"
+```
+
 ## Contributors
 
 <table>
