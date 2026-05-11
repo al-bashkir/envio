@@ -2,6 +2,10 @@
 
 # Unreleased
 
+## Features
+
+* Shell completions now suggest existing profile names for `envio add`, `load`, `unload`, `launch`, `remove`, `update`, `export`, and the `-n`/`--profile-name` value of `envio list`. `create` and `import` are intentionally excluded because their profile name must not already exist. Re-source the completion file (or reinstall it from `envio completion <shell>`) after upgrading.
+
 # v0.6.5
 
 ## BREAKING CHANGES
