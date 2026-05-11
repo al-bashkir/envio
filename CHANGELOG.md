@@ -2,6 +2,8 @@
 
 # Unreleased
 
+# v0.6.5
+
 ## BREAKING CHANGES
 
 * `envio load` now writes shell directives to stdout. Wrap with `eval "$(envio load <profile>)"` (bash/zsh) or `envio load <profile> | source` (fish). It no longer modifies any files or your shell rc.
@@ -26,6 +28,10 @@ With this version `~/.envio/setenv.sh` is no longer written, so that line points
 * `~/.config/fish/config.fish`
 
 (Only the file matching your shell will have the block.) After removing the lines, start a new shell — the error should be gone.
+
+## Features
+
+* Auto-detect GPG keys and fall back to passphrase in `envio create` (#11)
 
 # v0.6.1
 ## Features
