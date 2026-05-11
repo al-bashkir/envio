@@ -248,8 +248,78 @@ fn inject_fish(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::write(path, format!("{}{}", body, FISH_OVERRIDE))
 }
 
-fn inject_powershell(_path: &std::path::Path) -> std::io::Result<()> {
-    Ok(())
+const POWERSHELL_PROFILE_BRANCHES: &[&str] = &[
+    "'envio;add'",
+    "'envio;load'",
+    "'envio;unload'",
+    "'envio;launch'",
+    "'envio;remove'",
+    "'envio;update'",
+    "'envio;export'",
+];
+
+const POWERSHELL_PROFILE_INJECT: &str = r#"            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
+"#;
+
+const POWERSHELL_LIST_INJECT: &str = r#"            $prev = if ($commandElements.Count -ge 2) { $commandElements[$commandElements.Count - 2].Value } else { '' }
+            if ($prev -eq '-n' -or $prev -eq '--profile-name') {
+                envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                    [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+                }
+            }
+"#;
+
+const POWERSHELL_TRAILER: &str = "\n# envio: dynamic profile completion END\n";
+
+fn inject_powershell(path: &std::path::Path) -> std::io::Result<()> {
+    let body = std::fs::read_to_string(path)?;
+    if body.contains(COMPLETION_SENTINEL) {
+        return Ok(());
+    }
+
+    let mut out = String::with_capacity(body.len() + 1024);
+    let mut current_branch: Option<String> = None;
+    let mut injected_in_current_branch = false;
+
+    for line in body.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+
+        if let Some(end) = trimmed.find('{') {
+            let head = trimmed[..end].trim();
+            if head.starts_with('\'') && head.ends_with('\'') {
+                current_branch = Some(head.to_string());
+                injected_in_current_branch = false;
+                out.push_str(line);
+                continue;
+            }
+        }
+
+        if !injected_in_current_branch {
+            if let Some(branch) = current_branch.as_deref() {
+                if trimmed.starts_with("break") {
+                    if POWERSHELL_PROFILE_BRANCHES.contains(&branch) {
+                        out.push_str(POWERSHELL_PROFILE_INJECT);
+                        injected_in_current_branch = true;
+                    } else if branch == "'envio;list'" {
+                        out.push_str(POWERSHELL_LIST_INJECT);
+                        injected_in_current_branch = true;
+                    }
+                }
+            }
+        }
+
+        if trimmed.starts_with('}') {
+            current_branch = None;
+            injected_in_current_branch = false;
+        }
+
+        out.push_str(line);
+    }
+
+    out.push_str(POWERSHELL_TRAILER);
+    std::fs::write(path, out)
 }
 
 /// Get the version of the build
