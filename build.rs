@@ -198,10 +198,7 @@ fn inject_zsh(path: &std::path::Path) -> std::io::Result<()> {
         let in_list_stanza = current_stanza.as_deref() == Some("list");
 
         if in_target_stanza && line.contains("':profile_name:'") {
-            out.push_str(&line.replace(
-                "':profile_name:'",
-                "':profile_name:_envio_profiles'",
-            ));
+            out.push_str(&line.replace("':profile_name:'", "':profile_name:_envio_profiles'"));
             continue;
         }
         if in_list_stanza {
