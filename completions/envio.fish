@@ -61,3 +61,13 @@ complete -c envio -n "__fish_seen_subcommand_from help; and not __fish_seen_subc
 complete -c envio -n "__fish_seen_subcommand_from help; and not __fish_seen_subcommand_from create; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from load; and not __fish_seen_subcommand_from unload; and not __fish_seen_subcommand_from launch; and not __fish_seen_subcommand_from remove; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from update; and not __fish_seen_subcommand_from export; and not __fish_seen_subcommand_from import; and not __fish_seen_subcommand_from version; and not __fish_seen_subcommand_from completion; and not __fish_seen_subcommand_from help" -f -a "version" -d 'Print the version'
 complete -c envio -n "__fish_seen_subcommand_from help; and not __fish_seen_subcommand_from create; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from load; and not __fish_seen_subcommand_from unload; and not __fish_seen_subcommand_from launch; and not __fish_seen_subcommand_from remove; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from update; and not __fish_seen_subcommand_from export; and not __fish_seen_subcommand_from import; and not __fish_seen_subcommand_from version; and not __fish_seen_subcommand_from completion; and not __fish_seen_subcommand_from help" -f -a "completion" -d 'Generate shell completion scripts'
 complete -c envio -n "__fish_seen_subcommand_from help; and not __fish_seen_subcommand_from create; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from load; and not __fish_seen_subcommand_from unload; and not __fish_seen_subcommand_from launch; and not __fish_seen_subcommand_from remove; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from update; and not __fish_seen_subcommand_from export; and not __fish_seen_subcommand_from import; and not __fish_seen_subcommand_from version; and not __fish_seen_subcommand_from completion; and not __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+
+
+# envio: dynamic profile completion BEGIN
+function __envio_profiles
+    envio list --profiles --no-pretty-print 2>/dev/null
+end
+
+complete -c envio -n '__fish_seen_subcommand_from add load unload launch remove update export' -f -a '(__envio_profiles)'
+complete -c envio -n '__fish_seen_subcommand_from list' -s n -l profile-name -r -f -a '(__envio_profiles)'
+# envio: dynamic profile completion END

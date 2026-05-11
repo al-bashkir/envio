@@ -53,21 +53,21 @@ _arguments "${_arguments_options[@]}" \
 '--add-expiration-date[]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 && ret=0
 ;;
 (load)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 && ret=0
 ;;
 (unload)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 && ret=0
 ;;
 (launch)
@@ -76,7 +76,7 @@ _arguments "${_arguments_options[@]}" \
 '--command=[]:STRING_COMMAND: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 '*::COMMAND:' \
 && ret=0
 ;;
@@ -86,13 +86,13 @@ _arguments "${_arguments_options[@]}" \
 '*--envs-to-remove=[]:ENVS: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 && ret=0
 ;;
 (list)
 _arguments "${_arguments_options[@]}" \
-'-n+[]:PROFILE_NAME: ' \
-'--profile-name=[]:PROFILE_NAME: ' \
+'-n+[]:PROFILE_NAME:_envio_profiles ' \
+'--profile-name=[]:PROFILE_NAME:_envio_profiles ' \
 '-p[]' \
 '--profiles[]' \
 '-v[]' \
@@ -117,7 +117,7 @@ _arguments "${_arguments_options[@]}" \
 '--update-expiration-date[]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 && ret=0
 ;;
 (export)
@@ -128,7 +128,7 @@ _arguments "${_arguments_options[@]}" \
 '*--envs=[]:ENVS: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name:_envio_profiles' \
 && ret=0
 ;;
 (import)
@@ -399,3 +399,14 @@ if [ "$funcstack[1]" = "_envio" ]; then
 else
     compdef _envio envio
 fi
+
+
+# envio: dynamic profile completion BEGIN
+_envio_profiles() {
+    local -a profiles
+    profiles=("${(@f)$(envio list --profiles --no-pretty-print 2>/dev/null)}")
+    if (( ${#profiles[@]} )); then
+        _describe -t profiles 'profile' profiles
+    fi
+}
+# envio: dynamic profile completion END

@@ -62,16 +62,25 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--add-expiration-date', 'add-expiration-date', [CompletionResultType]::ParameterName, 'add-expiration-date')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;load' {
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;unload' {
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;launch' {
@@ -79,6 +88,9 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--command', 'command', [CompletionResultType]::ParameterName, 'command')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;remove' {
@@ -86,6 +98,9 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--envs-to-remove', 'envs-to-remove', [CompletionResultType]::ParameterName, 'envs-to-remove')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;list' {
@@ -101,6 +116,12 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--display-expiration-date', 'display-expiration-date', [CompletionResultType]::ParameterName, 'display-expiration-date')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            $prev = if ($commandElements.Count -ge 2) { $commandElements[$commandElements.Count - 2].Value } else { '' }
+            if ($prev -eq '-n' -or $prev -eq '--profile-name') {
+                envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                    [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+                }
+            }
             break
         }
         'envio;update' {
@@ -114,6 +135,9 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--update-expiration-date', 'update-expiration-date', [CompletionResultType]::ParameterName, 'update-expiration-date')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;export' {
@@ -123,6 +147,9 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'envs')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
+                [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+            }
             break
         }
         'envio;import' {
@@ -206,3 +233,5 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
     $completions.Where{ $_.CompletionText -like "$wordToComplete*" } |
         Sort-Object -Property ListItemText
 }
+
+# envio: dynamic profile completion END
