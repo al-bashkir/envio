@@ -78,9 +78,68 @@ fn inject_profile_completers(outdir: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn inject_bash(_path: &std::path::Path) -> std::io::Result<()> {
-    let _ = COMPLETION_SENTINEL;
-    Ok(())
+const BASH_OVERRIDE: &str = r#"
+
+# envio: dynamic profile completion BEGIN
+# Appended by build.rs after clap_complete. Provides profile-name completion
+# for: add, load, unload, launch, remove, update, export, and `list -n <value>`.
+
+_envio_profiles() {
+    envio list --profiles --no-pretty-print 2>/dev/null
+}
+
+_envio_with_profile_completion() {
+    _envio "$@"
+
+    local cur sub i
+    cur="${COMP_WORDS[COMP_CWORD]}"
+
+    sub=""
+    for (( i=1; i<COMP_CWORD; i++ )); do
+        case "${COMP_WORDS[i]}" in
+            -*) ;;
+            *) sub="${COMP_WORDS[i]}"; break ;;
+        esac
+    done
+
+    case "$sub" in
+        add|load|unload|launch|remove|update|export)
+            local seen_positionals=0 j
+            for (( j=i+1; j<COMP_CWORD; j++ )); do
+                case "${COMP_WORDS[j]}" in
+                    -*) ;;
+                    *) seen_positionals=$((seen_positionals+1)) ;;
+                esac
+            done
+            if [[ $seen_positionals -eq 0 && "$cur" != -* ]]; then
+                local IFS=$'\n'
+                COMPREPLY=( $(compgen -W "$(_envio_profiles)" -- "$cur") )
+            fi
+            ;;
+        list)
+            local prev="${COMP_WORDS[COMP_CWORD-1]}"
+            if [[ "$prev" == "-n" || "$prev" == "--profile-name" ]]; then
+                local IFS=$'\n'
+                COMPREPLY=( $(compgen -W "$(_envio_profiles)" -- "$cur") )
+            fi
+            ;;
+    esac
+}
+
+if [[ "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -ge 4 || "${BASH_VERSINFO[0]}" -gt 4 ]]; then
+    complete -F _envio_with_profile_completion -o nosort -o bashdefault -o default envio
+else
+    complete -F _envio_with_profile_completion -o bashdefault -o default envio
+fi
+# envio: dynamic profile completion END
+"#;
+
+fn inject_bash(path: &std::path::Path) -> std::io::Result<()> {
+    let body = std::fs::read_to_string(path)?;
+    if body.contains(COMPLETION_SENTINEL) {
+        return Ok(());
+    }
+    std::fs::write(path, format!("{}{}", body, BASH_OVERRIDE))
 }
 
 fn inject_zsh(_path: &std::path::Path) -> std::io::Result<()> {
