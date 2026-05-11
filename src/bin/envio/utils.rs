@@ -3,10 +3,14 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
+use envio::crypto::{create_encryption_type, gpg::get_gpg_keys, EncryptionType};
 use envio::error::{Error, Result};
 use envio::{Env, EnvVec};
 use indicatif::{ProgressBar, ProgressStyle};
+use inquire::{min_length, Password, PasswordDisplayMode, Select};
 use reqwest::Client;
+
+const USE_PASSPHRASE_OPTION: &str = "Use passphrase (age) instead";
 
 /// Shell flavor used for selecting the syntax of `export`/`unset` output.
 #[cfg(target_family = "unix")]
@@ -164,6 +168,75 @@ pub async fn download_file(url: &str, file_name: &str) -> Result<()> {
 
     pb.finish();
     Ok(())
+}
+
+/// Interactive picker used by `envio create` when the user did not supply a
+/// `-g`/`--gpg-key-fingerprint` flag.
+///
+/// Probes the system GPG keyring. If keys are found, shows a select prompt
+/// containing one entry per key plus a sentinel entry that drops the user into
+/// the age passphrase flow. An empty keyring falls back silently to the age
+/// passphrase flow. A failed probe prints a warning to stderr (including the
+/// underlying error detail) and then falls back to the age passphrase flow.
+pub fn pick_encryption_for_new_profile(vim_mode: bool) -> Result<Box<dyn EncryptionType>> {
+    #[cfg(target_family = "unix")]
+    let keys_result: std::result::Result<Vec<(String, String)>, String> =
+        get_gpg_keys().map_err(|e| e.to_string());
+
+    #[cfg(target_family = "windows")]
+    let keys_result: std::result::Result<Vec<(String, String)>, String> = match get_gpg_keys() {
+        Some(keys) => Ok(keys),
+        None => Err("keyring unavailable or gpg not installed".to_string()),
+    };
+
+    match keys_result {
+        Ok(keys) if !keys.is_empty() => {
+            let mut options: Vec<String> = keys.iter().map(|(label, _)| label.clone()).collect();
+            options.push(USE_PASSPHRASE_OPTION.to_string());
+
+            let ans = Select::new(
+                "Select GPG key for encryption (or use passphrase):",
+                options,
+            )
+            .with_vim_mode(vim_mode)
+            .prompt()
+            .map_err(|e| Error::Msg(e.to_string()))?;
+
+            if ans == USE_PASSPHRASE_OPTION {
+                age_passphrase_flow()
+            } else {
+                let fingerprint = keys
+                    .into_iter()
+                    .find_map(|(label, fp)| if label == ans { Some(fp) } else { None })
+                    .ok_or_else(|| {
+                        Error::Msg("Selected key not found in keyring list".to_string())
+                    })?;
+                create_encryption_type(fingerprint, "gpg")
+            }
+        }
+        Ok(_) => age_passphrase_flow(),
+        Err(detail) => {
+            eprintln!(
+                "Warning: GPG probe failed: {}. Falling back to passphrase.",
+                detail
+            );
+            age_passphrase_flow()
+        }
+    }
+}
+
+fn age_passphrase_flow() -> Result<Box<dyn EncryptionType>> {
+    let user_key = Password::new("Enter your encryption key:")
+        .with_display_toggle_enabled()
+        .with_display_mode(PasswordDisplayMode::Masked)
+        .with_validator(min_length!(8))
+        .with_formatter(&|_| String::from("Input received"))
+        .with_help_message("Remember this key, you will need it to decrypt your profile later")
+        .with_custom_confirmation_error_message("The keys don7't match.")
+        .prompt()
+        .map_err(|e| Error::Msg(e.to_string()))?;
+
+    create_encryption_type(user_key, "age")
 }
 
 #[cfg(test)]

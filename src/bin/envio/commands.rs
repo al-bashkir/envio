@@ -1,9 +1,7 @@
 /// Implementation of all the subcommands that can be run by the CLI
 use chrono::Local;
 use colored::Colorize;
-use inquire::{
-    min_length, Confirm, DateSelect, MultiSelect, Password, PasswordDisplayMode, Select, Text,
-};
+use inquire::{Confirm, DateSelect, MultiSelect, Password, PasswordDisplayMode, Select, Text};
 use regex::Regex;
 use std::collections::HashMap;
 use std::env;
@@ -127,24 +125,7 @@ impl Command {
 
                     encryption_type = create_encryption_type(gpg_key, "gpg")?;
                 } else {
-                    let prompt = Password::new("Enter your encryption key:")
-                        .with_display_toggle_enabled()
-                        .with_display_mode(PasswordDisplayMode::Masked)
-                        .with_validator(min_length!(8))
-                        .with_formatter(&|_| String::from("Input received"))
-                        .with_help_message(
-                            "Remember this key, you will need it to decrypt your profile later",
-                        )
-                        .with_custom_confirmation_error_message("The keys don7't match.")
-                        .prompt();
-
-                    let user_key = if let Err(e) = prompt {
-                        return Err(Error::Msg(e.to_string()));
-                    } else {
-                        prompt.unwrap()
-                    };
-
-                    encryption_type = create_encryption_type(user_key, "age")?;
+                    encryption_type = crate::utils::pick_encryption_for_new_profile(vim_mode)?;
                 }
 
                 let mut envs_vec;
