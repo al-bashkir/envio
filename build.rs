@@ -228,8 +228,24 @@ fn inject_zsh(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::write(path, out)
 }
 
-fn inject_fish(_path: &std::path::Path) -> std::io::Result<()> {
-    Ok(())
+const FISH_OVERRIDE: &str = r#"
+
+# envio: dynamic profile completion BEGIN
+function __envio_profiles
+    envio list --profiles --no-pretty-print 2>/dev/null
+end
+
+complete -c envio -n '__fish_seen_subcommand_from add load unload launch remove update export' -f -a '(__envio_profiles)'
+complete -c envio -n '__fish_seen_subcommand_from list' -s n -l profile-name -r -f -a '(__envio_profiles)'
+# envio: dynamic profile completion END
+"#;
+
+fn inject_fish(path: &std::path::Path) -> std::io::Result<()> {
+    let body = std::fs::read_to_string(path)?;
+    if body.contains(COMPLETION_SENTINEL) {
+        return Ok(());
+    }
+    std::fs::write(path, format!("{}{}", body, FISH_OVERRIDE))
 }
 
 fn inject_powershell(_path: &std::path::Path) -> std::io::Result<()> {
