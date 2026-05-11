@@ -142,8 +142,90 @@ fn inject_bash(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::write(path, format!("{}{}", body, BASH_OVERRIDE))
 }
 
-fn inject_zsh(_path: &std::path::Path) -> std::io::Result<()> {
-    Ok(())
+const ZSH_HELPER: &str = r#"
+
+# envio: dynamic profile completion BEGIN
+_envio_profiles() {
+    local -a profiles
+    profiles=("${(@f)$(envio list --profiles --no-pretty-print 2>/dev/null)}")
+    if (( ${#profiles[@]} )); then
+        _describe -t profiles 'profile' profiles
+    fi
+}
+# envio: dynamic profile completion END
+"#;
+
+const ZSH_PROFILE_SUBCOMMANDS: &[&str] = &[
+    "add", "load", "unload", "launch", "remove", "update", "export",
+];
+
+fn inject_zsh(path: &std::path::Path) -> std::io::Result<()> {
+    let body = std::fs::read_to_string(path)?;
+    if body.contains(COMPLETION_SENTINEL) {
+        return Ok(());
+    }
+
+    let mut out = String::with_capacity(body.len() + ZSH_HELPER.len());
+    let mut current_stanza: Option<String> = None;
+
+    for line in body.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix('(') {
+            if let Some(close) = rest.find(')') {
+                let name = &rest[..close];
+                if !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+                    && rest[close + 1..].trim().is_empty()
+                {
+                    current_stanza = Some(name.to_string());
+                    out.push_str(line);
+                    continue;
+                }
+            }
+        }
+        if trimmed.starts_with(";;") {
+            current_stanza = None;
+            out.push_str(line);
+            continue;
+        }
+
+        let in_target_stanza = current_stanza
+            .as_deref()
+            .map(|s| ZSH_PROFILE_SUBCOMMANDS.contains(&s))
+            .unwrap_or(false);
+        let in_list_stanza = current_stanza.as_deref() == Some("list");
+
+        if in_target_stanza && line.contains("':profile_name:'") {
+            out.push_str(&line.replace(
+                "':profile_name:'",
+                "':profile_name:_envio_profiles'",
+            ));
+            continue;
+        }
+        if in_list_stanza {
+            if line.contains("'-n+[]:PROFILE_NAME: '") {
+                out.push_str(&line.replace(
+                    "'-n+[]:PROFILE_NAME: '",
+                    "'-n+[]:PROFILE_NAME:_envio_profiles '",
+                ));
+                continue;
+            }
+            if line.contains("'--profile-name=[]:PROFILE_NAME: '") {
+                out.push_str(&line.replace(
+                    "'--profile-name=[]:PROFILE_NAME: '",
+                    "'--profile-name=[]:PROFILE_NAME:_envio_profiles '",
+                ));
+                continue;
+            }
+        }
+
+        out.push_str(line);
+    }
+
+    out.push_str(ZSH_HELPER);
+    std::fs::write(path, out)
 }
 
 fn inject_fish(_path: &std::path::Path) -> std::io::Result<()> {
