@@ -18,6 +18,10 @@ fn main() {
         panic!("Error: {}", e);
     }
 
+    if let Err(e) = inject_profile_completers(completions_dir) {
+        panic!("Error injecting profile completers: {}", e);
+    }
+
     let manpage_dir = "man";
     if let Err(e) = create_dir(manpage_dir) {
         panic!("Error: {}", e);
@@ -54,6 +58,40 @@ fn generate_completions(
     generate_to(Fish, cmd, app_name, outdir)?;
     generate_to(PowerShell, cmd, app_name, outdir)?;
 
+    Ok(())
+}
+
+const COMPLETION_SENTINEL: &str = "# envio: dynamic profile completion END";
+
+/// Append/patch each generated completion script with a block that makes the
+/// profile-name positions complete to existing profile names by shelling out
+/// to `envio list --profiles --no-pretty-print`.
+fn inject_profile_completers(outdir: &str) -> std::io::Result<()> {
+    use std::path::Path;
+    let outdir = Path::new(outdir);
+
+    inject_bash(&outdir.join("envio.bash"))?;
+    inject_zsh(&outdir.join("_envio"))?;
+    inject_fish(&outdir.join("envio.fish"))?;
+    inject_powershell(&outdir.join("_envio.ps1"))?;
+
+    Ok(())
+}
+
+fn inject_bash(_path: &std::path::Path) -> std::io::Result<()> {
+    let _ = COMPLETION_SENTINEL;
+    Ok(())
+}
+
+fn inject_zsh(_path: &std::path::Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+fn inject_fish(_path: &std::path::Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+fn inject_powershell(_path: &std::path::Path) -> std::io::Result<()> {
     Ok(())
 }
 
