@@ -32,6 +32,22 @@ Sound interesting? Check out the [repository](https://github.com/al-bashkir/envi
 
 `envio` currently supports **Linux**, **MacOS** and **Windows**
 
+## Install
+
+Homebrew (macOS arm64 and Linux):
+
+```bash
+brew install al-bashkir/tools/envio
+```
+
+Linux users also need the system GPG libraries installed via their distro package manager:
+
+- Debian/Ubuntu: `apt install libgpgme11 libgpg-error0`
+- Fedora/RHEL: `dnf install gpgme libgpg-error`
+- Arch: `pacman -S gpgme libgpg-error`
+
+For other install methods (cargo, prebuilt binaries, Windows), see the [main repository](https://github.com/al-bashkir/envio).
+
 ## Loading a profile
 
 `envio load` and `envio unload` print shell directives to stdout. Source them with `eval` (bash/zsh) or pipe to `source` (fish):
