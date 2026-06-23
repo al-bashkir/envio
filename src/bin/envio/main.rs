@@ -6,35 +6,13 @@ mod version;
 
 use clap::Parser;
 use colored::Colorize;
-use semver::Version;
 
 use clap_app::ClapApp;
-use version::get_latest_version;
 
 #[cfg(target_family = "unix")]
 use utils::initalize_config;
 
 fn main() {
-    color_eyre::install().unwrap();
-
-    let latest_version = get_latest_version();
-
-    let current_version = if let Ok(val) = Version::parse(env!("BUILD_VERSION")) {
-        val
-    } else {
-        println!("{}: Failed to parse current version", "Error".red());
-        "0.0.0".parse().unwrap()
-    };
-
-    if latest_version > current_version {
-        println!(
-            "{}: {} -> {}",
-            "New version available".yellow(),
-            current_version,
-            latest_version
-        );
-    }
-
     let args = ClapApp::parse();
 
     #[cfg(target_family = "unix")]

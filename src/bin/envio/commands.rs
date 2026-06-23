@@ -2,12 +2,10 @@
 use chrono::Local;
 use colored::Colorize;
 use inquire::{Confirm, DateSelect, MultiSelect, Password, PasswordDisplayMode, Select, Text};
-use regex::Regex;
 use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 use std::path::Path;
-use url::Url;
 
 use envio::crypto::create_encryption_type;
 use envio::crypto::gpg::get_gpg_keys;
@@ -47,7 +45,7 @@ fn get_vim_mode() -> Result<bool> {
         .and_then(|stem| stem.to_str())
         .ok_or("")?; // Same here
 
-    Ok(Regex::new(r"n?vim?").unwrap().is_match(program_stem)) // unwrap is safe here because we know that the regex will always compile
+    Ok(matches!(program_stem, "vi" | "vim" | "nvi" | "nvim"))
 }
 
 impl Command {
@@ -69,7 +67,7 @@ impl Command {
                 }
 
                 if Profile::does_exist(profile_name) {
-                    return Err(Error::ProfileExists(profile_name.to_string()));
+                    return Err(Error::ProfileAlreadyExists(profile_name.to_string()));
                 }
 
                 let gpg_key;
@@ -643,10 +641,10 @@ impl Command {
                 url,
             } => {
                 if Profile::does_exist(profile_name) {
-                    return Err(Error::ProfileExists(profile_name.to_string()));
+                    return Err(Error::ProfileAlreadyExists(profile_name.to_string()));
                 }
 
-                if url.is_some() && Url::parse(url.as_ref().unwrap()).is_ok() {
+                if url.is_some() && url.as_ref().unwrap().starts_with("http") {
                     cli::download_profile(
                         url.as_ref().unwrap().to_string(),
                         profile_name.to_string(),
@@ -668,15 +666,16 @@ impl Command {
                 ));
             }
 
-            Command::Version { verbose } => {
+            Command::Version { verbose, check } => {
+                println!("{} {}", "Version".green(), env!("BUILD_VERSION"));
                 if *verbose {
-                    println!("{} {}", "Version".green(), env!("BUILD_VERSION"));
                     println!("{} {}", "Build Timestamp".green(), env!("BUILD_TIMESTAMP"));
                     println!("{} {}", "Author".green(), env!("CARGO_PKG_AUTHORS"));
                     println!("{} {}", "License".green(), env!("CARGO_PKG_LICENSE"));
                     println!("{} {}", "Repository".green(), env!("CARGO_PKG_REPOSITORY"));
-                } else {
-                    println!("{} {}", "Version".green(), env!("BUILD_VERSION"));
+                }
+                if *check {
+                    crate::version::check_for_update();
                 }
             }
 

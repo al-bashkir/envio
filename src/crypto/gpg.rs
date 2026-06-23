@@ -32,10 +32,6 @@ impl EncryptionType for GPG {
         self.key_fingerprint = key;
     }
 
-    fn get_key(&self) -> String {
-        self.key_fingerprint.clone()
-    }
-
     fn as_string(&self) -> &'static str {
         "gpg"
     }

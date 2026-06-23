@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use envio::crypto::{create_encryption_type, gpg::get_gpg_keys, EncryptionType};
 use envio::error::{Error, Result};
 use envio::{Env, EnvVec};
-use indicatif::{ProgressBar, ProgressStyle};
 use inquire::{min_length, Password, PasswordDisplayMode, Select};
 use reqwest::Client;
 
@@ -60,30 +59,12 @@ pub fn initalize_config() -> Result<()> {
     }
     Ok(())
 }
-/// Get the home directory
-///
-/// # Returns
-/// - `PathBuf`: the home directory
-pub fn get_homedir() -> Result<PathBuf> {
-    match dirs::home_dir() {
-        Some(home) => Ok(home),
-        None => Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Could not find home directory",
-        ))),
-    }
-}
-
-/// Get the config directory
+/// Get the config directory (`~/.envio`)
 ///
 /// # Returns
 /// - `PathBuf`: the config directory
 pub fn get_configdir() -> Result<PathBuf> {
-    Ok(get_homedir()?.join(".envio"))
-}
-
-pub fn contains_path_separator(s: &str) -> bool {
-    s.contains('/') || s.contains('\\')
+    Ok(envio::utils::get_configdir())
 }
 
 pub fn get_cwd() -> PathBuf {
@@ -136,37 +117,16 @@ pub fn parse_envs_from_string(buffer: &str) -> Result<EnvVec> {
 /// # Returns
 /// - `Result<()>`: an empty result
 pub async fn download_file(url: &str, file_name: &str) -> Result<()> {
-    let client = Client::new();
-    let mut resp = if let Err(e) = client.get(url).send().await {
-        return Err(Error::Msg(e.to_string()));
-    } else {
-        client.get(url).send().await.unwrap()
-    };
+    let bytes = Client::new()
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| Error::Msg(e.to_string()))?
+        .bytes()
+        .await
+        .map_err(|e| Error::Msg(e.to_string()))?;
 
-    let mut file = File::create(file_name)?;
-
-    let mut content_length = if resp.content_length().is_none() {
-        return Err(Error::Msg("Content length is not available".to_string()));
-    } else {
-        resp.content_length().unwrap()
-    };
-
-    let pb = ProgressBar::new(content_length);
-
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-        .unwrap()
-        .progress_chars("#>-"));
-
-    while let Some(chunk) = resp.chunk().await.unwrap() {
-        let chunk_size = chunk.len();
-        file.write_all(&chunk)?;
-
-        pb.inc(chunk_size as u64);
-        content_length -= chunk_size as u64;
-    }
-
-    pb.finish();
+    File::create(file_name)?.write_all(&bytes)?;
     Ok(())
 }
 

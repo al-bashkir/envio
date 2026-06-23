@@ -26,10 +26,6 @@ impl EncryptionType for AGE {
         self.key = key;
     }
 
-    fn get_key(&self) -> String {
-        self.key.clone()
-    }
-
     fn as_string(&self) -> &'static str {
         "age"
     }

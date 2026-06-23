@@ -146,6 +146,7 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-v[]' \
 '--verbose[]' \
+'--check[Check for a newer release (requires network)]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0

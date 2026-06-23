@@ -164,6 +164,7 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
         'envio;version' {
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'v')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'verbose')
+            [CompletionResult]::new('--check', 'check', [CompletionResultType]::ParameterName, 'Check for a newer release (requires network)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             break

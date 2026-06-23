@@ -89,12 +89,10 @@ macro_rules! load {
         (||->envio::error::Result<()> {
             use envio::Profile;
             use envio::crypto;
-            use envio::utils;
 
-            let encrypted_content = utils::get_profile_content($name)?;
             let mut encryption_type;
 
-            match crypto::get_encryption_type(&encrypted_content) {
+            match crypto::get_encryption_type($name) {
                 Ok(t) => encryption_type = t,
                 Err(e) => return Err(e.into()),
             }
@@ -106,13 +104,13 @@ macro_rules! load {
                 )?
             }
 
-            let profile = match Profile::from_content($name, &encrypted_content, encryption_type) {
+            let profile = match Profile::from($name, encryption_type) {
                 Ok(profile) => profile,
                 Err(e) => return Err(e.into()),
             };
 
-            for (env_var, value) in &profile.envs {
-                std::env::set_var(env_var, value);
+            for env in &profile.envs {
+                std::env::set_var(&env.name, &env.value);
             }
 
             Ok(())
