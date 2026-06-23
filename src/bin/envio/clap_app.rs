@@ -174,6 +174,12 @@ pub enum Command {
     Version {
         #[arg(required = false, long = "verbose", short = 'v')]
         verbose: bool,
+        #[arg(
+            required = false,
+            long = "check",
+            help = "Check for a newer release (requires network)"
+        )]
+        check: bool,
     },
     #[command(
         name = "completion",

@@ -1,7 +1,6 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-#[non_exhaustive]
 pub enum Error {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -15,8 +14,6 @@ pub enum Error {
     ProfileDoesNotExist(String),
     #[error("Profile `{0}` name is empty")]
     ProfileNameEmpty(String),
-    #[error("Profile `{0}` already exists")]
-    ProfileExists(String),
     #[error("Profile `{0}` is empty")]
     EmptyProfile(String),
     #[error("Environment variable `{0}` does not exist")]

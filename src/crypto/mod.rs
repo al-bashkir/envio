@@ -27,12 +27,6 @@ pub trait EncryptionType {
     /// - `key`: String - the key to use for encryption/decryption
     fn set_key(&mut self, key: String);
 
-    /// Get the key used for encryption/decryption
-    ///
-    /// # Returns
-    /// - `String`: the key
-    fn get_key(&self) -> String;
-
     /// Encrypt data
     ///
     /// # Parameters

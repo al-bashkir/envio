@@ -17,7 +17,8 @@ use envio::{
     EnvVec, Profile,
 };
 
-use crate::utils::{contains_path_separator, download_file, get_configdir, get_cwd};
+use crate::utils::{download_file, get_configdir, get_cwd};
+use envio::utils::contains_path_separator;
 
 /// Wrap a value in single quotes safe for POSIX shells and fish.
 /// Each embedded `'` is replaced with `'\''` (close-quote, literal `\'`, reopen).

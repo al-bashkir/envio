@@ -46,6 +46,7 @@ complete -c envio -n "__fish_seen_subcommand_from import" -s f -l file-to-import
 complete -c envio -n "__fish_seen_subcommand_from import" -s u -l url -r
 complete -c envio -n "__fish_seen_subcommand_from import" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from version" -s v -l verbose
+complete -c envio -n "__fish_seen_subcommand_from version" -l check -d 'Check for a newer release (requires network)'
 complete -c envio -n "__fish_seen_subcommand_from version" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from completion" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from help; and not __fish_seen_subcommand_from create; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from load; and not __fish_seen_subcommand_from unload; and not __fish_seen_subcommand_from launch; and not __fish_seen_subcommand_from remove; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from update; and not __fish_seen_subcommand_from export; and not __fish_seen_subcommand_from import; and not __fish_seen_subcommand_from version; and not __fish_seen_subcommand_from completion; and not __fish_seen_subcommand_from help" -f -a "create" -d 'Create a new profile'
