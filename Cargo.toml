@@ -1,6 +1,6 @@
 [package]
 name = "envio"
-version = "0.6.6"
+version = "0.7.0"
 rust-version = "1.75.0"
 description = "A Modern And Secure CLI Tool For Managing Environment Variables"
 edition = "2021"
