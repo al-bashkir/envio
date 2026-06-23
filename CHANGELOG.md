@@ -2,6 +2,19 @@
 
 # Unreleased
 
+# v0.7.0
+
+## Features
+
+* `envio version --check` queries for a newer release on demand. The previous behavior of checking for updates on every command (and its progress UI) has been removed, so normal commands no longer make a network call at startup.
+
+## Others
+
+* Dropped unused dependencies: `indicatif`, `url`, and `color-eyre`.
+* Removed dead code across `profile`, `crypto`, and `utils`; simplified the `load!` macro and `Profile` API.
+* Added Homebrew install instructions to the docs.
+* `cargo fmt` on `build.rs` (#15).
+
 # v0.6.6
 
 ## Features
