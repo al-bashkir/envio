@@ -210,6 +210,209 @@ pub fn check_name(name: &str) -> Result<()> {
     Ok(())
 }
 
+/// What happened to one profile during push or pull.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Outcome {
+    Uploaded,
+    Downloaded,
+    UpToDate,
+    /// Refused because of the given status; `--force` overrides.
+    Refused(Status),
+    /// The named profile does not exist on the side it would be read from.
+    Missing(&'static str),
+    /// The backend call failed. Other profiles continue.
+    Failed(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Report {
+    pub profile: String,
+    pub outcome: Outcome,
+}
+
+/// Names of every `<name>.env` in the profiles directory, sorted.
+pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
+    Ok(dir_list(profiles_dir)?
+        .into_iter()
+        .map(|e| e.name)
+        .collect())
+}
+
+/// One remote bound to one local profiles directory and state file.
+pub struct Sync<'a> {
+    pub remote_name: &'a str,
+    pub remote: &'a Remote,
+    pub profiles_dir: &'a Path,
+    pub state_path: &'a Path,
+}
+
+impl Sync<'_> {
+    fn local_path(&self, name: &str) -> PathBuf {
+        self.profiles_dir.join(format!("{}.env", name))
+    }
+
+    fn local_bytes(&self, name: &str) -> Result<Option<Vec<u8>>> {
+        match std::fs::read(self.local_path(name)) {
+            Ok(b) => Ok(Some(b)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    fn remote_hashes(&self) -> Result<BTreeMap<String, String>> {
+        let mut out = BTreeMap::new();
+        for e in self.remote.list()? {
+            // Skip anything a pull could not safely write, e.g. `..` or a
+            // dot-file someone dropped in the bucket by hand.
+            if check_name(&e.name).is_ok() {
+                out.insert(e.name, e.sha256);
+            }
+        }
+        Ok(out)
+    }
+
+    fn validate(names: &[String]) -> Result<()> {
+        names.iter().try_for_each(|n| check_name(n))
+    }
+
+    /// Upload `profiles` (or every local profile if empty).
+    pub fn push(&self, profiles: &[String], force: bool) -> Result<Vec<Report>> {
+        Self::validate(profiles)?;
+        let mut state = SyncState::load(self.state_path)?;
+        let remote = self.remote_hashes()?;
+        let names = if profiles.is_empty() {
+            local_profile_names(self.profiles_dir)?
+        } else {
+            profiles.to_vec()
+        };
+
+        let mut reports = Vec::with_capacity(names.len());
+        for name in names {
+            let local = self.local_bytes(&name)?;
+            let local_hash = local.as_deref().map(sha256_hex);
+            let remote_hash = remote.get(&name).map(String::as_str);
+            let status = decide(
+                local_hash.as_deref(),
+                remote_hash,
+                state.get(self.remote_name, &name),
+            );
+
+            let outcome = match (status, &local) {
+                (_, None) => Outcome::Missing("no such local profile"),
+                (Status::UpToDate, Some(_)) => {
+                    state.set(self.remote_name, &name, local_hash.clone().unwrap());
+                    Outcome::UpToDate
+                }
+                (Status::OnlyLocal | Status::LocalAhead, Some(bytes)) => {
+                    self.upload(&mut state, &name, bytes)
+                }
+                (Status::RemoteAhead | Status::Conflict, Some(bytes)) if force => {
+                    self.upload(&mut state, &name, bytes)
+                }
+                (Status::RemoteAhead | Status::Conflict, Some(_)) => Outcome::Refused(status),
+                (Status::OnlyRemote, Some(_)) => unreachable!("local is Some"),
+            };
+            reports.push(Report {
+                profile: name,
+                outcome,
+            });
+        }
+        state.save(self.state_path)?;
+        Ok(reports)
+    }
+
+    fn upload(&self, state: &mut SyncState, name: &str, bytes: &[u8]) -> Outcome {
+        match self.remote.put(name, bytes) {
+            Ok(()) => {
+                state.set(self.remote_name, name, sha256_hex(bytes));
+                Outcome::Uploaded
+            }
+            Err(e) => Outcome::Failed(e.to_string()),
+        }
+    }
+
+    /// Download `profiles` (or every remote profile if empty).
+    pub fn pull(&self, profiles: &[String], force: bool) -> Result<Vec<Report>> {
+        Self::validate(profiles)?;
+        let mut state = SyncState::load(self.state_path)?;
+        let remote = self.remote_hashes()?;
+        let names: Vec<String> = if profiles.is_empty() {
+            remote.keys().cloned().collect()
+        } else {
+            profiles.to_vec()
+        };
+
+        let mut reports = Vec::with_capacity(names.len());
+        for name in names {
+            let local_hash = self.local_bytes(&name)?.map(|b| sha256_hex(&b));
+            let remote_hash = remote.get(&name).map(String::as_str);
+            let status = decide(
+                local_hash.as_deref(),
+                remote_hash,
+                state.get(self.remote_name, &name),
+            );
+
+            let outcome = match (status, remote_hash) {
+                (_, None) => Outcome::Missing("not on remote"),
+                (Status::UpToDate, Some(h)) => {
+                    state.set(self.remote_name, &name, h.to_string());
+                    Outcome::UpToDate
+                }
+                (Status::OnlyRemote | Status::RemoteAhead, Some(_)) => {
+                    self.download(&mut state, &name)
+                }
+                (Status::LocalAhead | Status::Conflict, Some(_)) if force => {
+                    self.download(&mut state, &name)
+                }
+                (Status::LocalAhead | Status::Conflict, Some(_)) => Outcome::Refused(status),
+                (Status::OnlyLocal, Some(_)) => unreachable!("remote is Some"),
+            };
+            reports.push(Report {
+                profile: name,
+                outcome,
+            });
+        }
+        state.save(self.state_path)?;
+        Ok(reports)
+    }
+
+    fn download(&self, state: &mut SyncState, name: &str) -> Outcome {
+        let result = self
+            .remote
+            .get(name)
+            .and_then(|bytes| write_atomic(&self.local_path(name), &bytes).map(|_| bytes));
+        match result {
+            Ok(bytes) => {
+                state.set(self.remote_name, name, sha256_hex(&bytes));
+                Outcome::Downloaded
+            }
+            Err(e) => Outcome::Failed(e.to_string()),
+        }
+    }
+
+    /// Status of every profile present locally or on the remote, sorted.
+    pub fn status(&self) -> Result<Vec<(String, Status)>> {
+        let state = SyncState::load(self.state_path)?;
+        let remote = self.remote_hashes()?;
+        let mut names: Vec<String> = local_profile_names(self.profiles_dir)?;
+        names.extend(remote.keys().cloned());
+        names.sort();
+        names.dedup();
+
+        let mut out = Vec::with_capacity(names.len());
+        for name in names {
+            let local_hash = self.local_bytes(&name)?.map(|b| sha256_hex(&b));
+            let status = decide(
+                local_hash.as_deref(),
+                remote.get(&name).map(String::as_str),
+                state.get(self.remote_name, &name),
+            );
+            out.push((name, status));
+        }
+        Ok(out)
+    }
+}
+
 /// Write `bytes` to `path`, creating it with mode 0600 on Unix.
 pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
     use std::io::Write;
@@ -564,5 +767,205 @@ mod dir_tests {
             abs_target
         );
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod engine_tests {
+    use super::*;
+
+    struct Fixture {
+        root: PathBuf,
+        remote: Remote,
+    }
+
+    impl Fixture {
+        fn new(name: &str) -> Self {
+            let root =
+                std::env::temp_dir().join(format!("envio-sync-{}-{}", std::process::id(), name));
+            let _ = std::fs::remove_dir_all(&root);
+            for sub in ["a/profiles", "b/profiles", "remote"] {
+                std::fs::create_dir_all(root.join(sub)).unwrap();
+            }
+            let remote = Remote::Dir {
+                path: root.join("remote"),
+            };
+            Fixture { root, remote }
+        }
+
+        fn sync(&self, machine: &str) -> Sync<'_> {
+            // Leak the paths: tests only, keeps the borrow simple.
+            let profiles_dir: &'static Path =
+                Box::leak(self.root.join(machine).join("profiles").into_boxed_path());
+            let state_path: &'static Path = Box::leak(
+                self.root
+                    .join(machine)
+                    .join("sync-state.toml")
+                    .into_boxed_path(),
+            );
+            Sync {
+                remote_name: "test",
+                remote: &self.remote,
+                profiles_dir,
+                state_path,
+            }
+        }
+
+        fn write(&self, machine: &str, name: &str, bytes: &[u8]) {
+            std::fs::write(
+                self.root
+                    .join(machine)
+                    .join("profiles")
+                    .join(format!("{}.env", name)),
+                bytes,
+            )
+            .unwrap();
+        }
+
+        fn read(&self, machine: &str, name: &str) -> Vec<u8> {
+            std::fs::read(
+                self.root
+                    .join(machine)
+                    .join("profiles")
+                    .join(format!("{}.env", name)),
+            )
+            .unwrap()
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn outcomes(reports: &[Report]) -> Vec<(&str, &Outcome)> {
+        reports
+            .iter()
+            .map(|r| (r.profile.as_str(), &r.outcome))
+            .collect()
+    }
+
+    #[test]
+    fn push_all_then_pull_all_on_second_machine() {
+        let f = Fixture::new("roundtrip");
+        f.write("a", "work", b"cipher-work");
+        f.write("a", "staging", b"cipher-staging");
+
+        let reports = f.sync("a").push(&[], false).unwrap();
+        assert_eq!(
+            outcomes(&reports),
+            vec![
+                ("staging", &Outcome::Uploaded),
+                ("work", &Outcome::Uploaded)
+            ]
+        );
+
+        let reports = f.sync("b").pull(&[], false).unwrap();
+        assert_eq!(
+            outcomes(&reports),
+            vec![
+                ("staging", &Outcome::Downloaded),
+                ("work", &Outcome::Downloaded)
+            ]
+        );
+        assert_eq!(f.read("b", "work"), b"cipher-work");
+        assert_eq!(f.read("b", "staging"), b"cipher-staging");
+
+        let state = SyncState::load(&f.root.join("b/sync-state.toml")).unwrap();
+        assert_eq!(
+            state.get("test", "work"),
+            Some(sha256_hex(b"cipher-work").as_str())
+        );
+
+        // second push/pull is a no-op
+        let reports = f.sync("a").push(&[], false).unwrap();
+        assert!(reports.iter().all(|r| r.outcome == Outcome::UpToDate));
+        let reports = f.sync("b").pull(&[], false).unwrap();
+        assert!(reports.iter().all(|r| r.outcome == Outcome::UpToDate));
+    }
+
+    #[test]
+    fn remote_ahead_refuses_push_unless_forced() {
+        let f = Fixture::new("remote-ahead");
+        f.write("a", "work", b"v1");
+        f.sync("a").push(&[], false).unwrap();
+        // machine b pulls v1, edits, pushes v2
+        f.sync("b").pull(&[], false).unwrap();
+        f.write("b", "work", b"v2");
+        let reports = f.sync("b").push(&[], false).unwrap();
+        assert_eq!(reports[0].outcome, Outcome::Uploaded);
+
+        // machine a still has v1 and last-synced v1: remote is ahead
+        let reports = f.sync("a").push(&["work".into()], false).unwrap();
+        assert_eq!(reports[0].outcome, Outcome::Refused(Status::RemoteAhead));
+        assert_eq!(f.remote.get("work").unwrap(), b"v2");
+
+        let reports = f.sync("a").push(&["work".into()], true).unwrap();
+        assert_eq!(reports[0].outcome, Outcome::Uploaded);
+        assert_eq!(f.remote.get("work").unwrap(), b"v1");
+    }
+
+    #[test]
+    fn local_ahead_refuses_pull_unless_forced() {
+        let f = Fixture::new("local-ahead");
+        f.write("a", "work", b"v1");
+        f.sync("a").push(&[], false).unwrap();
+        f.write("a", "work", b"v1-edited");
+
+        let reports = f.sync("a").pull(&["work".into()], false).unwrap();
+        assert_eq!(reports[0].outcome, Outcome::Refused(Status::LocalAhead));
+        assert_eq!(f.read("a", "work"), b"v1-edited");
+
+        let reports = f.sync("a").pull(&["work".into()], true).unwrap();
+        assert_eq!(reports[0].outcome, Outcome::Downloaded);
+        assert_eq!(f.read("a", "work"), b"v1");
+    }
+
+    #[test]
+    fn conflict_refuses_both_ways() {
+        let f = Fixture::new("conflict");
+        f.write("a", "work", b"v1");
+        f.sync("a").push(&[], false).unwrap();
+        f.write("a", "work", b"a-edit");
+        f.remote.put("work", b"b-edit").unwrap();
+
+        let push = f.sync("a").push(&[], false).unwrap();
+        assert_eq!(push[0].outcome, Outcome::Refused(Status::Conflict));
+        let pull = f.sync("a").pull(&[], false).unwrap();
+        assert_eq!(pull[0].outcome, Outcome::Refused(Status::Conflict));
+    }
+
+    #[test]
+    fn named_profile_missing_on_either_side() {
+        let f = Fixture::new("missing");
+        f.write("a", "work", b"v1");
+        let pull = f.sync("a").pull(&["work".into()], false).unwrap();
+        assert!(matches!(pull[0].outcome, Outcome::Missing(_)));
+        let push = f.sync("a").push(&["ghost".into()], false).unwrap();
+        assert!(matches!(push[0].outcome, Outcome::Missing(_)));
+        assert!(f.sync("a").push(&["../evil".into()], false).is_err());
+    }
+
+    #[test]
+    fn status_reports_every_row() {
+        let f = Fixture::new("status");
+        f.write("a", "same", b"s");
+        f.write("a", "local-ahead", b"l1");
+        f.write("a", "remote-ahead", b"r1");
+        f.write("a", "only-local", b"o");
+        f.sync("a").push(&[], false).unwrap();
+        f.write("a", "local-ahead", b"l2");
+        f.remote.put("remote-ahead", b"r2").unwrap();
+        f.remote.put("only-remote", b"x").unwrap();
+        // make only-local truly only local again
+        std::fs::remove_file(f.root.join("remote/only-local.env")).unwrap();
+
+        let status: BTreeMap<String, Status> = f.sync("a").status().unwrap().into_iter().collect();
+        assert_eq!(status["same"], Status::UpToDate);
+        assert_eq!(status["local-ahead"], Status::LocalAhead);
+        assert_eq!(status["remote-ahead"], Status::RemoteAhead);
+        assert_eq!(status["only-local"], Status::OnlyLocal);
+        assert_eq!(status["only-remote"], Status::OnlyRemote);
     }
 }
