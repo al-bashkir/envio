@@ -138,6 +138,7 @@ impl Remote {
 
     /// Raw bytes of `<name>.env` on the remote.
     pub fn get(&self, name: &str) -> Result<Vec<u8>> {
+        check_name(name)?;
         match self {
             Remote::Dir { path } => Ok(std::fs::read(path.join(format!("{}.env", name)))?),
             Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
@@ -149,6 +150,7 @@ impl Remote {
 
     /// Create or overwrite `<name>.env` on the remote.
     pub fn put(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        check_name(name)?;
         match self {
             Remote::Dir { path } => write_atomic(&path.join(format!("{}.env", name)), bytes),
             Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
@@ -511,5 +513,56 @@ mod dir_tests {
         assert!(check_name(".hidden").is_err());
         assert!(check_name("a/b").is_err());
         assert!(check_name("a\\b").is_err());
+    }
+
+    #[test]
+    fn get_rejects_path_traversal() {
+        let dir = tmp("get-traversal");
+        let remote = Remote::Dir { path: dir.clone() };
+        let err = remote.get("../evil").unwrap_err();
+        assert!(err.to_string().contains("invalid profile name"));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn put_rejects_path_traversal() {
+        let root = tmp("put-traversal-root");
+        let remote_dir = root.join("remote");
+        std::fs::create_dir(&remote_dir).unwrap();
+        let remote = Remote::Dir {
+            path: remote_dir.clone(),
+        };
+
+        let err = remote.put("../evil", b"payload").unwrap_err();
+        assert!(err.to_string().contains("invalid profile name"));
+
+        // Verify no file was created outside the remote dir
+        let evil_path = root.join("evil.env");
+        assert!(
+            !evil_path.exists(),
+            "File should not exist at {:?}",
+            evil_path
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn put_rejects_absolute_path() {
+        let dir = tmp("put-absolute");
+        let remote = Remote::Dir { path: dir.clone() };
+
+        // Try to write to an absolute path
+        let abs_name = "/tmp/envio-should-not-exist";
+        let err = remote.put(abs_name, b"payload").unwrap_err();
+        assert!(err.to_string().contains("invalid profile name"));
+
+        // Verify no file was created at the absolute path
+        let abs_target = PathBuf::from("/tmp/envio-should-not-exist.env");
+        assert!(
+            !abs_target.exists(),
+            "File should not exist at {:?}",
+            abs_target
+        );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
