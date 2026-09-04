@@ -117,6 +117,97 @@ impl SyncState {
     }
 }
 
+/// One profile as seen on a remote.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteEntry {
+    pub name: String,
+    pub sha256: String,
+}
+
+impl Remote {
+    /// Every `<name>.env` object under this remote's prefix, sorted by name.
+    pub fn list(&self) -> Result<Vec<RemoteEntry>> {
+        match self {
+            Remote::Dir { path } => dir_list(path),
+            Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
+            Remote::GoogleDrive { .. } => Err(Error::Sync(
+                "Google Drive backend not implemented yet".into(),
+            )),
+        }
+    }
+
+    /// Raw bytes of `<name>.env` on the remote.
+    pub fn get(&self, name: &str) -> Result<Vec<u8>> {
+        match self {
+            Remote::Dir { path } => Ok(std::fs::read(path.join(format!("{}.env", name)))?),
+            Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
+            Remote::GoogleDrive { .. } => Err(Error::Sync(
+                "Google Drive backend not implemented yet".into(),
+            )),
+        }
+    }
+
+    /// Create or overwrite `<name>.env` on the remote.
+    pub fn put(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        match self {
+            Remote::Dir { path } => write_atomic(&path.join(format!("{}.env", name)), bytes),
+            Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
+            Remote::GoogleDrive { .. } => Err(Error::Sync(
+                "Google Drive backend not implemented yet".into(),
+            )),
+        }
+    }
+}
+
+fn dir_list(path: &Path) -> Result<Vec<RemoteEntry>> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(path)? {
+        let p = entry?.path();
+        let Some(name) = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".env"))
+        else {
+            continue;
+        };
+        if check_name(name).is_err() {
+            continue;
+        }
+        out.push(RemoteEntry {
+            name: name.to_string(),
+            sha256: sha256_hex(&std::fs::read(&p)?),
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// Write to a sibling temp file, then rename over `dest`, so a dropped
+/// network share or a killed process cannot leave a truncated profile.
+pub(crate) fn write_atomic(dest: &Path, bytes: &[u8]) -> Result<()> {
+    let file_name = dest
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| Error::Sync(format!("bad path {}", dest.display())))?;
+    let tmp = dest.with_file_name(format!(".{}.tmp", file_name));
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, dest)?;
+    Ok(())
+}
+
+/// Reject names that could escape the profiles directory or collide with
+/// temp files. Applied to CLI arguments and to names reported by remotes.
+pub fn check_name(name: &str) -> Result<()> {
+    if name.is_empty()
+        || name == ".."
+        || name.starts_with('.')
+        || crate::utils::contains_path_separator(name)
+    {
+        return Err(Error::Sync(format!("invalid profile name `{}`", name)));
+    }
+    Ok(())
+}
+
 /// Write `bytes` to `path`, creating it with mode 0600 on Unix.
 pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
     use std::io::Write;
@@ -362,5 +453,63 @@ mod config_tests {
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod dir_tests {
+    use super::*;
+
+    fn tmp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("envio-sync-{}-{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn dir_put_list_get() {
+        let dir = tmp("dir-backend");
+        let remote = Remote::Dir { path: dir.clone() };
+        remote.put("work", b"cipher-1").unwrap();
+        remote.put("staging", b"cipher-2").unwrap();
+        std::fs::write(dir.join("notes.txt"), b"ignored").unwrap();
+
+        let entries = remote.list().unwrap();
+        let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["staging", "work"]);
+        assert_eq!(entries[1].sha256, sha256_hex(b"cipher-1"));
+        assert_eq!(remote.get("work").unwrap(), b"cipher-1");
+        assert!(remote.get("missing").is_err());
+
+        // no temp files left behind
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{:?}", leftovers);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn dir_put_overwrites() {
+        let dir = tmp("dir-overwrite");
+        let remote = Remote::Dir { path: dir.clone() };
+        remote.put("work", b"one").unwrap();
+        remote.put("work", b"two").unwrap();
+        assert_eq!(remote.get("work").unwrap(), b"two");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn check_name_rejects_paths() {
+        assert!(check_name("work").is_ok());
+        assert!(check_name("my-app_v2").is_ok());
+        assert!(check_name("").is_err());
+        assert!(check_name("..").is_err());
+        assert!(check_name(".hidden").is_err());
+        assert!(check_name("a/b").is_err());
+        assert!(check_name("a\\b").is_err());
     }
 }
