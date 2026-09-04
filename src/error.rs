@@ -26,6 +26,10 @@ pub enum Error {
     InvalidEncryptionType(String),
     #[error("Invalid UTF-8: {0}")]
     Utf8Error(#[from] std::str::Utf8Error),
+    #[error("Sync error: {0}")]
+    Sync(String),
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
     #[error("{0}")]
     Msg(String),
 }
