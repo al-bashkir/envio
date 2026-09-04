@@ -289,6 +289,35 @@ pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
     Ok(out)
 }
 
+/// Collapse a remote listing into `name -> sha256`.
+///
+/// Two entries with the same name are an error, not a last-one-wins
+/// overwrite: `list` and `get` resolve a name independently (Google Drive
+/// allows two files called `work.env` in one folder, and `get` picks the
+/// first while a listing hands us whichever came last), so a duplicate
+/// means the hash a decision is made from and the bytes a download returns
+/// can belong to different files. Refusing here keeps that ambiguity
+/// visible instead of quietly picking one.
+fn reduce_listing(entries: Vec<RemoteEntry>) -> Result<BTreeMap<String, String>> {
+    let mut out = BTreeMap::new();
+    for RemoteEntry { name, sha256 } in entries {
+        // Skip anything a pull could not safely write, e.g. `..` or a
+        // dot-file someone dropped in the bucket by hand.
+        if check_name(&name).is_err() {
+            continue;
+        }
+        if let Some(previous) = out.insert(name.clone(), sha256.clone()) {
+            return Err(Error::Sync(format!(
+                "remote holds two copies of profile `{}` (sha256 {} and {}); \
+                 sync cannot tell which one is authoritative — delete the \
+                 stale copy on the remote by hand and retry",
+                name, previous, sha256
+            )));
+        }
+    }
+    Ok(out)
+}
+
 /// One remote bound to one local profiles directory and state file.
 pub struct Sync<'a> {
     pub remote_name: &'a str,
@@ -311,15 +340,7 @@ impl Sync<'_> {
     }
 
     fn remote_hashes(&self) -> Result<BTreeMap<String, String>> {
-        let mut out = BTreeMap::new();
-        for e in self.remote.list()? {
-            // Skip anything a pull could not safely write, e.g. `..` or a
-            // dot-file someone dropped in the bucket by hand.
-            if check_name(&e.name).is_ok() {
-                out.insert(e.name, e.sha256);
-            }
-        }
-        Ok(out)
+        reduce_listing(self.remote.list()?)
     }
 
     fn validate(names: &[String]) -> Result<()> {
@@ -428,11 +449,11 @@ impl Sync<'_> {
                     state.set(self.remote_name, &name, h.to_string());
                     Outcome::UpToDate
                 }
-                (Status::OnlyRemote | Status::RemoteAhead, Some(_)) => {
-                    self.download(&mut state, &name)
+                (Status::OnlyRemote | Status::RemoteAhead, Some(h)) => {
+                    self.download(&mut state, &name, h)
                 }
-                (Status::LocalAhead | Status::Conflict, Some(_)) if force => {
-                    self.download(&mut state, &name)
+                (Status::LocalAhead | Status::Conflict, Some(h)) if force => {
+                    self.download(&mut state, &name, h)
                 }
                 (Status::LocalAhead | Status::Conflict, Some(_)) => Outcome::Refused(status),
                 (Status::OnlyLocal, Some(_)) => unreachable!("remote is Some"),
@@ -446,18 +467,32 @@ impl Sync<'_> {
         Ok(reports)
     }
 
-    fn download(&self, state: &mut SyncState, name: &str) -> Outcome {
-        let result = self
-            .remote
-            .get(name)
-            .and_then(|bytes| write_atomic(&self.local_path(name), &bytes).map(|_| bytes));
-        match result {
-            Ok(bytes) => {
-                state.set(self.remote_name, name, sha256_hex(&bytes));
-                Outcome::Downloaded
-            }
-            Err(e) => Outcome::Failed(e.to_string()),
+    /// Fetch `name` and write it locally, but only if the bytes hash to
+    /// `expected` — the hash the overwrite decision was made from.
+    ///
+    /// The listing that produced `expected` and the fetch that produces the
+    /// bytes are two independent lookups, so they can disagree: the remote
+    /// may have changed under us, or (on Google Drive) resolve the same name
+    /// to a different file. Overwriting a profile with unverified bytes is
+    /// unrecoverable data loss, so a mismatch aborts before touching disk.
+    fn download(&self, state: &mut SyncState, name: &str, expected: &str) -> Outcome {
+        let bytes = match self.remote.get(name) {
+            Ok(bytes) => bytes,
+            Err(e) => return Outcome::Failed(e.to_string()),
+        };
+        let actual = sha256_hex(&bytes);
+        if actual != expected {
+            return Outcome::Failed(format!(
+                "remote content changed under us: expected sha256 {}, downloaded {}; \
+                 local copy left untouched, re-run to pick up the new remote state",
+                expected, actual
+            ));
         }
+        if let Err(e) = write_atomic(&self.local_path(name), &bytes) {
+            return Outcome::Failed(e.to_string());
+        }
+        state.set(self.remote_name, name, actual);
+        Outcome::Downloaded
     }
 
     /// Status of every profile present locally or on the remote, sorted.
@@ -1078,6 +1113,84 @@ mod engine_tests {
             state.get("test", "zzz"),
             Some(sha256_hex(b"zzz-cipher").as_str())
         );
+    }
+
+    #[test]
+    fn download_refuses_bytes_that_do_not_match_the_authorizing_hash() {
+        let f = Fixture::new("download-hash-mismatch");
+        f.write("a", "work", b"v1");
+        f.sync("a").push(&[], false).unwrap();
+        let recorded = sha256_hex(b"v1");
+
+        // The remote content changes after the listing the decision was made
+        // from: `expected` is now stale. On Drive the same split happens
+        // without anyone editing anything, because `list` and `get` can
+        // resolve one name to two different files.
+        f.remote.put("work", b"attacker-cipher").unwrap();
+
+        let sync = f.sync("a");
+        let mut state = SyncState::load(&f.root.join("a/sync-state.toml")).unwrap();
+        let outcome = sync.download(&mut state, "work", &recorded);
+
+        let Outcome::Failed(msg) = &outcome else {
+            panic!("expected Failed, got {:?}", outcome);
+        };
+        assert!(msg.contains(&recorded), "{}", msg);
+        assert!(
+            msg.contains(&sha256_hex(b"attacker-cipher")),
+            "message must name the hash actually downloaded: {}",
+            msg
+        );
+        assert!(msg.contains("left untouched"), "{}", msg);
+
+        // The local profile is byte-for-byte what it was.
+        assert_eq!(f.read("a", "work"), b"v1");
+        // State still records the old agreement, not the rejected bytes.
+        assert_eq!(state.get("test", "work"), Some(recorded.as_str()));
+        // No half-written temp file left in the profiles directory.
+        let leftovers: Vec<_> = std::fs::read_dir(f.root.join("a/profiles"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{:?}", leftovers);
+    }
+
+    #[test]
+    fn duplicate_remote_name_is_an_error_not_a_silent_pick() {
+        // A real directory cannot hold two identically-named files, so this
+        // exercises the listing reduction directly — the same code path the
+        // Drive backend feeds when two `work.env` files share one folder.
+        let entries = vec![
+            RemoteEntry {
+                name: "work".into(),
+                sha256: sha256_hex(b"first"),
+            },
+            RemoteEntry {
+                name: "work".into(),
+                sha256: sha256_hex(b"second"),
+            },
+        ];
+        let err = reduce_listing(entries).unwrap_err().to_string();
+        assert!(err.contains("work"), "{}", err);
+        assert!(err.contains("two copies"), "{}", err);
+        assert!(err.contains(&sha256_hex(b"first")), "{}", err);
+        assert!(err.contains(&sha256_hex(b"second")), "{}", err);
+
+        // Distinct names still reduce cleanly.
+        let ok = reduce_listing(vec![
+            RemoteEntry {
+                name: "work".into(),
+                sha256: "w".into(),
+            },
+            RemoteEntry {
+                name: "staging".into(),
+                sha256: "s".into(),
+            },
+        ])
+        .unwrap();
+        assert_eq!(ok.len(), 2);
+        assert_eq!(ok["work"], "w");
     }
 
     #[test]
