@@ -41,6 +41,29 @@ throwaway `$HOME`, unless you want a disposable test — see note below).
 | 6 | `rm ~/.envio/profiles/a.env` | (no output — removes the local copy) |
 | 7 | `envio sync pull` | `a  downloaded`. Exit code 0. |
 | 8 | `cat ~/.envio/profiles/a.env` | `cipher-a2` — the content from step 5, round-tripped through Drive. |
+| 9 | `envio sync status` | `a  up to date`. Exit code 0. This is the first command that exercises `list` for its own sake rather than as a step inside push/pull. |
+| 10 | `printf "cipher-b1" > ~/.envio/profiles/b.env` then `envio sync push` | `a  up to date` and `b  uploaded`. Exit code 0. A second profile is what makes `list` return more than one file — a single-file listing hides ordering and duplicate-name problems. |
+| 11 | `envio sync status` | Two lines, both `up to date`, sorted `a` then `b`. |
+| 12 | `printf "local-edit" > ~/.envio/profiles/a.env` then `envio sync pull` | `a  local ahead (use --force)` and `b  up to date`. **Non-zero** exit: pull refuses to discard the local edit. |
+| 13 | `envio sync pull --force` | `a  downloaded`, `b  up to date`. Exit code 0. |
+| 14 | `cat ~/.envio/profiles/a.env` | `cipher-a2` — the forced pull replaced the local edit, with no backup of it. Confirm you understand that before relying on `--force`. |
+
+### Revoked-token run
+
+Do this last; it invalidates the refresh token stored in `sync.toml`.
+
+| # | Command | Expected output |
+|---|---------|------------------|
+| 15 | Revoke access at [Google Account → Third-party apps](https://myaccount.google.com/permissions) (find `envio`, remove access) | (no terminal output) |
+| 16 | `envio sync status` | A **usable** error, not a raw JSON line: something like `Sync error: Google Drive token refresh: 400 Bad Request Token has been expired or revoked.` Non-zero exit. |
+
+Step 16 is the check that matters here. Google's token endpoint answers with
+`{"error":"invalid_grant","error_description":"Token has been expired or
+revoked."}`, which is a different envelope from the Drive API's
+`{"error":{"message":...}}`. If the message reads as raw JSON, or is empty,
+or dumps the whole body, `gdrive::error_message` has regressed.
+
+To recover, run `envio sync remote remove drive` and add it again.
 
 Note: you can run this against a scratch `$HOME` the same way the MinIO
 check does (`HOME=$(mktemp -d) sh -c '...'`, creating `$HOME/.envio/profiles`
@@ -54,14 +77,19 @@ Open [Google Drive](https://drive.google.com/) in the browser for the
 account you approved with.
 
 - [ ] A folder named `envio` exists in **My Drive**.
-- [ ] Inside it there is **exactly one** file named `a.env` — not two.
+- [ ] Inside it there is **exactly one** file named `a.env` — not two —
+  and one named `b.env`.
   This is the check that matters most: Google Drive happily allows two
   files with the same name in the same folder, so if `envio`'s "update
   existing file" logic were broken (e.g. it always created instead of
   ever patching), step 5 above would silently leave a duplicate `a.env`
   behind instead of overwriting the first one. Right-click the file →
   **Manage versions** (or check "Last modified") to confirm it was
-  updated at step 5's timestamp, not created fresh.
+  updated at step 5's timestamp, not created fresh. If you do find two
+  files with one name, every subsequent `push`, `pull` and `status`
+  should now fail with `remote holds two copies of profile ...` rather
+  than silently picking one — that refusal is deliberate, and the fix is
+  to delete the stale file in the Drive UI.
 - [ ] The file's content, if you download it, is raw ciphertext
   (`cipher-a2` in this walkthrough) — not something Drive can render as
   text/preview meaningfully. This is expected: `envio` never sends
