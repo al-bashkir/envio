@@ -74,12 +74,31 @@ envio sync remote add work      # interactive: pick s3, google_drive, or dir
 envio sync push                 # upload every local profile
 envio sync pull                 # on another machine: download every profile
 envio sync status               # compare local and remote
-envio sync push my-app --force  # overwrite the remote copy after a conflict
+envio sync push my-app --force  # DESTRUCTIVE: discard the remote copy
 ```
 
 Push and pull refuse to overwrite a side that changed since the last sync.
-`--force` overrides. With several remotes, pass `--remote NAME` or set
-`default = "NAME"` at the top of `~/.envio/sync.toml`.
+With several remotes, pass `--remote NAME` or set `default = "NAME"` at the
+top of `~/.envio/sync.toml`.
+
+`--force` overrides that refusal, and it is destructive in whichever
+direction you point it:
+
+- `push --force` replaces the remote copy with your local one. Whatever the
+  other machine pushed is gone — there is no remote history and no backup
+  of the version you overwrote.
+- `pull --force` replaces your local profile with the remote copy. The
+  local version is not backed up first, so any local changes you had not
+  pushed are gone.
+
+Before forcing, run `envio sync status` to see which side changed, and if
+you might need both versions, copy the file you are about to lose
+(`cp ~/.envio/profiles/my-app.env /tmp/`) first.
+
+Sync never deletes. `envio remove my-app` removes the local profile but
+leaves the remote copy in place, so the next `envio sync pull` (with no
+profile names) downloads it again. To stop syncing a profile, delete it on
+the remote too — from the bucket, the Drive folder, or the `dir` path.
 
 ### S3 (AWS, MinIO, Cloudflare R2, Backblaze B2)
 
