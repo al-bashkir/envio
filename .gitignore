@@ -9,3 +9,9 @@
 /.env
 
 /.vscode
+
+# Brainstorming specs and implementation plans (local only)
+/docs/superpowers
+
+# Subagent-driven development scratch workspace
+/.superpowers
