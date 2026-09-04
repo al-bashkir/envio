@@ -257,16 +257,26 @@ pub(crate) fn write_atomic(dest: &Path, bytes: &[u8]) -> Result<()> {
 /// character allowlist subsumes that, the separator check, and control
 /// characters. A trailing `.` is rejected as well: Windows silently strips
 /// it, so `work.` and `work` would name the same file.
+///
+/// Interior spaces *are* allowed. `envio create "my app"` is accepted today
+/// (`Command::Create` checks only that the name is non-empty and unused), so
+/// `~/.envio/profiles/my app.env` is a legitimate profile, and every backend
+/// can represent it: the `dir` backend writes it verbatim, `encode_path`
+/// percent-encodes it to `%20` for S3's canonical URI, and Drive's
+/// `q_escape` needs no escaping for a space. Refusing to back up a profile
+/// the tool itself created would be the wrong trade. A *leading* or
+/// *trailing* space is still rejected, because Windows silently strips it
+/// and two distinct names would then collide on one file.
 pub fn check_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
         && name != ".."
         && !name.starts_with('.')
         && !name.ends_with('.')
-        // Spaces are not in the allowlist, so a trailing space (also
-        // silently stripped by Windows) is rejected here too.
+        && !name.starts_with(' ')
+        && !name.ends_with(' ')
         && name
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ' '));
     if !valid {
         return Err(Error::Sync(format!("invalid profile name `{}`", name)));
     }
@@ -345,7 +355,8 @@ pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
 /// Why a profile was left out of a batch. Reported, never swallowed: for a
 /// backup tool, "silently not backed up" is the worst possible outcome.
 const UNSUPPORTED_NAME: &str = "profile name not supported by sync \
-    (allowed: letters, digits, `-`, `_`, `.`; no leading or trailing `.`)";
+    (allowed: letters, digits, spaces, `-`, `_`, `.`; must not start or end \
+     with `.` or a space)";
 
 /// A remote listing reduced to `name -> sha256`, plus the names sync had to
 /// leave out. `unsupported` is returned rather than dropped so a remote
@@ -1026,6 +1037,7 @@ mod dir_tests {
         assert!(check_name(".hidden").is_err());
         assert!(check_name("a/b").is_err());
         assert!(check_name("a\\b").is_err());
+        assert!(check_name("../evil").is_err());
     }
 
     #[test]
@@ -1038,9 +1050,16 @@ mod dir_tests {
         // Windows strips a trailing dot or space, so these alias `work`.
         assert!(check_name("work.").is_err());
         assert!(check_name("work ").is_err());
-        // Spaces anywhere, control characters, and other punctuation are
-        // outside the allowlist.
-        assert!(check_name("my app").is_err());
+        assert!(check_name(" work").is_err());
+        assert!(check_name(" ").is_err());
+        // An interior space is fine (see `check_name`'s docs), an edge one
+        // is not.
+        assert!(check_name("my app").is_ok());
+        assert!(check_name("a b c").is_ok());
+        assert!(check_name(" leading").is_err());
+        assert!(check_name("trailing ").is_err());
+        // Control characters and other punctuation stay outside the
+        // allowlist.
         assert!(check_name("wo\u{7}rk").is_err());
         assert!(check_name("wo\nrk").is_err());
         assert!(check_name("wo\0rk").is_err());
@@ -1440,6 +1459,40 @@ mod engine_tests {
         assert_eq!(
             listing.unsupported,
             vec![".hidden".to_string(), "C:evil".to_string()]
+        );
+    }
+
+    #[test]
+    fn space_named_profile_round_trips() {
+        // `envio create "my app"` is accepted, so this profile is a normal
+        // thing to own. Proving the bytes survive a full push/pull is worth
+        // more than asserting `check_name` alone: it exercises the name
+        // through `put`, `list`, `get` and the local write.
+        let f = Fixture::new("space-named-profile");
+        f.write("a", "my app", b"cipher-my-app");
+        f.write("a", "plain", b"cipher-plain");
+
+        let reports = f.sync("a").push(&[], false).unwrap();
+        let by_name: BTreeMap<&str, &Outcome> = outcomes(&reports).into_iter().collect();
+        assert_eq!(by_name.len(), 2, "{:?}", reports);
+        assert_eq!(by_name["my app"], &Outcome::Uploaded);
+        assert_eq!(by_name["plain"], &Outcome::Uploaded);
+        assert!(f.root.join("remote/my app.env").exists());
+
+        let reports = f.sync("b").pull(&[], false).unwrap();
+        let by_name: BTreeMap<&str, &Outcome> = outcomes(&reports).into_iter().collect();
+        assert_eq!(by_name["my app"], &Outcome::Downloaded);
+        assert_eq!(f.read("b", "my app"), b"cipher-my-app");
+
+        // Named explicitly, not just as part of a batch.
+        let reports = f.sync("b").pull(&["my app".into()], false).unwrap();
+        assert_eq!(reports[0].outcome, Outcome::UpToDate);
+
+        // And it is a real state-file key, not silently normalised.
+        let state = SyncState::load(&f.root.join("b/sync-state.toml")).unwrap();
+        assert_eq!(
+            state.get("test", "my app"),
+            Some(sha256_hex(b"cipher-my-app").as_str())
         );
     }
 
