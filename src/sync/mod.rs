@@ -6,6 +6,8 @@
 
 use sha2::{Digest, Sha256};
 
+pub mod s3;
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -129,7 +131,12 @@ impl Remote {
     pub fn list(&self) -> Result<Vec<RemoteEntry>> {
         match self {
             Remote::Dir { path } => dir_list(path),
-            Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
+            Remote::S3 {
+                bucket,
+                prefix,
+                region,
+                endpoint,
+            } => s3::S3::new(bucket, prefix, region, endpoint.as_deref())?.list(),
             Remote::GoogleDrive { .. } => Err(Error::Sync(
                 "Google Drive backend not implemented yet".into(),
             )),
@@ -141,7 +148,12 @@ impl Remote {
         check_name(name)?;
         match self {
             Remote::Dir { path } => Ok(std::fs::read(path.join(format!("{}.env", name)))?),
-            Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
+            Remote::S3 {
+                bucket,
+                prefix,
+                region,
+                endpoint,
+            } => s3::S3::new(bucket, prefix, region, endpoint.as_deref())?.get(name),
             Remote::GoogleDrive { .. } => Err(Error::Sync(
                 "Google Drive backend not implemented yet".into(),
             )),
@@ -153,7 +165,12 @@ impl Remote {
         check_name(name)?;
         match self {
             Remote::Dir { path } => write_atomic(&path.join(format!("{}.env", name)), bytes),
-            Remote::S3 { .. } => Err(Error::Sync("S3 backend not implemented yet".into())),
+            Remote::S3 {
+                bucket,
+                prefix,
+                region,
+                endpoint,
+            } => s3::S3::new(bucket, prefix, region, endpoint.as_deref())?.put(name, bytes),
             Remote::GoogleDrive { .. } => Err(Error::Sync(
                 "Google Drive backend not implemented yet".into(),
             )),
