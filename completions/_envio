@@ -142,6 +142,184 @@ _arguments "${_arguments_options[@]}" \
 ':profile_name:' \
 && ret=0
 ;;
+(sync)
+_arguments "${_arguments_options[@]}" \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_envio__sync_commands" \
+"*::: :->sync" \
+&& ret=0
+
+    case $state in
+    (sync)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-sync-command-$line[1]:"
+        case $line[1] in
+            (remote)
+_arguments "${_arguments_options[@]}" \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_envio__sync__remote_commands" \
+"*::: :->remote" \
+&& ret=0
+
+    case $state in
+    (remote)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-sync-remote-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" \
+'-h[Print help]' \
+'--help[Print help]' \
+':name:' \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" \
+'-h[Print help]' \
+'--help[Print help]' \
+':name:' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" \
+":: :_envio__sync__remote__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-sync-remote-help-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(push)
+_arguments "${_arguments_options[@]}" \
+'-r+[Remote name from sync.toml]:REMOTE: ' \
+'--remote=[Remote name from sync.toml]:REMOTE: ' \
+'-f[Overwrite even if the remote changed]' \
+'--force[Overwrite even if the remote changed]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'*::profiles:' \
+&& ret=0
+;;
+(pull)
+_arguments "${_arguments_options[@]}" \
+'-r+[Remote name from sync.toml]:REMOTE: ' \
+'--remote=[Remote name from sync.toml]:REMOTE: ' \
+'-f[Overwrite even if the local copy changed]' \
+'--force[Overwrite even if the local copy changed]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'*::profiles:' \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" \
+'-r+[Remote name from sync.toml]:REMOTE: ' \
+'--remote=[Remote name from sync.toml]:REMOTE: ' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" \
+":: :_envio__sync__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-sync-help-command-$line[1]:"
+        case $line[1] in
+            (remote)
+_arguments "${_arguments_options[@]}" \
+":: :_envio__sync__help__remote_commands" \
+"*::: :->remote" \
+&& ret=0
+
+    case $state in
+    (remote)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-sync-help-remote-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(push)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(pull)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
 (version)
 _arguments "${_arguments_options[@]}" \
 '-v[]' \
@@ -210,6 +388,62 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 && ret=0
 ;;
+(sync)
+_arguments "${_arguments_options[@]}" \
+":: :_envio__help__sync_commands" \
+"*::: :->sync" \
+&& ret=0
+
+    case $state in
+    (sync)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-help-sync-command-$line[1]:"
+        case $line[1] in
+            (remote)
+_arguments "${_arguments_options[@]}" \
+":: :_envio__help__sync__remote_commands" \
+"*::: :->remote" \
+&& ret=0
+
+    case $state in
+    (remote)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:envio-help-sync-remote-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(push)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(pull)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
 (version)
 _arguments "${_arguments_options[@]}" \
 && ret=0
@@ -244,6 +478,7 @@ _envio_commands() {
 'update:Update environment variables in a profile' \
 'export:Export a profile to a file if no file is specified it will be exported to a file named .env' \
 'import:Download a profile over the internet and import it into the system or import a locally stored profile into your current envio installation' \
+'sync:Push and pull encrypted profiles to a remote store (S3, Google Drive, or a directory)' \
 'version:Print the version' \
 'completion:Generate shell completion scripts' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -259,6 +494,26 @@ _envio__add_commands() {
 _envio__help__add_commands() {
     local commands; commands=()
     _describe -t commands 'envio help add commands' commands "$@"
+}
+(( $+functions[_envio__help__sync__remote__add_commands] )) ||
+_envio__help__sync__remote__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio help sync remote add commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__remote__add_commands] )) ||
+_envio__sync__help__remote__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help remote add commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__add_commands] )) ||
+_envio__sync__remote__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote add commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__help__add_commands] )) ||
+_envio__sync__remote__help__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote help add commands' commands "$@"
 }
 (( $+functions[_envio__completion_commands] )) ||
 _envio__completion_commands() {
@@ -303,6 +558,7 @@ _envio__help_commands() {
 'update:Update environment variables in a profile' \
 'export:Export a profile to a file if no file is specified it will be exported to a file named .env' \
 'import:Download a profile over the internet and import it into the system or import a locally stored profile into your current envio installation' \
+'sync:Push and pull encrypted profiles to a remote store (S3, Google Drive, or a directory)' \
 'version:Print the version' \
 'completion:Generate shell completion scripts' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -313,6 +569,37 @@ _envio__help_commands() {
 _envio__help__help_commands() {
     local commands; commands=()
     _describe -t commands 'envio help help commands' commands "$@"
+}
+(( $+functions[_envio__sync__help_commands] )) ||
+_envio__sync__help_commands() {
+    local commands; commands=(
+'remote:Manage sync remotes' \
+'push:Upload profiles to the remote (all local profiles if none given)' \
+'pull:Download profiles from the remote (all remote profiles if none given)' \
+'status:Show how each profile compares with the remote' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'envio sync help commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__help_commands] )) ||
+_envio__sync__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help help commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__help_commands] )) ||
+_envio__sync__remote__help_commands() {
+    local commands; commands=(
+'add:Add a remote interactively' \
+'list:List configured remotes' \
+'remove:Remove a remote' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'envio sync remote help commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__help__help_commands] )) ||
+_envio__sync__remote__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote help help commands' commands "$@"
 }
 (( $+functions[_envio__help__import_commands] )) ||
 _envio__help__import_commands() {
@@ -339,10 +626,30 @@ _envio__help__list_commands() {
     local commands; commands=()
     _describe -t commands 'envio help list commands' commands "$@"
 }
+(( $+functions[_envio__help__sync__remote__list_commands] )) ||
+_envio__help__sync__remote__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio help sync remote list commands' commands "$@"
+}
 (( $+functions[_envio__list_commands] )) ||
 _envio__list_commands() {
     local commands; commands=()
     _describe -t commands 'envio list commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__remote__list_commands] )) ||
+_envio__sync__help__remote__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help remote list commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__help__list_commands] )) ||
+_envio__sync__remote__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote help list commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__list_commands] )) ||
+_envio__sync__remote__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote list commands' commands "$@"
 }
 (( $+functions[_envio__help__load_commands] )) ||
 _envio__help__load_commands() {
@@ -354,15 +661,129 @@ _envio__load_commands() {
     local commands; commands=()
     _describe -t commands 'envio load commands' commands "$@"
 }
+(( $+functions[_envio__help__sync__pull_commands] )) ||
+_envio__help__sync__pull_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio help sync pull commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__pull_commands] )) ||
+_envio__sync__help__pull_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help pull commands' commands "$@"
+}
+(( $+functions[_envio__sync__pull_commands] )) ||
+_envio__sync__pull_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync pull commands' commands "$@"
+}
+(( $+functions[_envio__help__sync__push_commands] )) ||
+_envio__help__sync__push_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio help sync push commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__push_commands] )) ||
+_envio__sync__help__push_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help push commands' commands "$@"
+}
+(( $+functions[_envio__sync__push_commands] )) ||
+_envio__sync__push_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync push commands' commands "$@"
+}
+(( $+functions[_envio__help__sync__remote_commands] )) ||
+_envio__help__sync__remote_commands() {
+    local commands; commands=(
+'add:Add a remote interactively' \
+'list:List configured remotes' \
+'remove:Remove a remote' \
+    )
+    _describe -t commands 'envio help sync remote commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__remote_commands] )) ||
+_envio__sync__help__remote_commands() {
+    local commands; commands=(
+'add:Add a remote interactively' \
+'list:List configured remotes' \
+'remove:Remove a remote' \
+    )
+    _describe -t commands 'envio sync help remote commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote_commands] )) ||
+_envio__sync__remote_commands() {
+    local commands; commands=(
+'add:Add a remote interactively' \
+'list:List configured remotes' \
+'remove:Remove a remote' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'envio sync remote commands' commands "$@"
+}
 (( $+functions[_envio__help__remove_commands] )) ||
 _envio__help__remove_commands() {
     local commands; commands=()
     _describe -t commands 'envio help remove commands' commands "$@"
 }
+(( $+functions[_envio__help__sync__remote__remove_commands] )) ||
+_envio__help__sync__remote__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio help sync remote remove commands' commands "$@"
+}
 (( $+functions[_envio__remove_commands] )) ||
 _envio__remove_commands() {
     local commands; commands=()
     _describe -t commands 'envio remove commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__remote__remove_commands] )) ||
+_envio__sync__help__remote__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help remote remove commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__help__remove_commands] )) ||
+_envio__sync__remote__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote help remove commands' commands "$@"
+}
+(( $+functions[_envio__sync__remote__remove_commands] )) ||
+_envio__sync__remote__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync remote remove commands' commands "$@"
+}
+(( $+functions[_envio__help__sync__status_commands] )) ||
+_envio__help__sync__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio help sync status commands' commands "$@"
+}
+(( $+functions[_envio__sync__help__status_commands] )) ||
+_envio__sync__help__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync help status commands' commands "$@"
+}
+(( $+functions[_envio__sync__status_commands] )) ||
+_envio__sync__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'envio sync status commands' commands "$@"
+}
+(( $+functions[_envio__help__sync_commands] )) ||
+_envio__help__sync_commands() {
+    local commands; commands=(
+'remote:Manage sync remotes' \
+'push:Upload profiles to the remote (all local profiles if none given)' \
+'pull:Download profiles from the remote (all remote profiles if none given)' \
+'status:Show how each profile compares with the remote' \
+    )
+    _describe -t commands 'envio help sync commands' commands "$@"
+}
+(( $+functions[_envio__sync_commands] )) ||
+_envio__sync_commands() {
+    local commands; commands=(
+'remote:Manage sync remotes' \
+'push:Upload profiles to the remote (all local profiles if none given)' \
+'pull:Download profiles from the remote (all remote profiles if none given)' \
+'status:Show how each profile compares with the remote' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'envio sync commands' commands "$@"
 }
 (( $+functions[_envio__help__unload_commands] )) ||
 _envio__help__unload_commands() {

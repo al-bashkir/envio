@@ -170,6 +170,14 @@ pub enum Command {
         #[arg(required = false, long = "url", short = 'u')]
         url: Option<String>,
     },
+    #[command(
+        name = "sync",
+        about = "Push and pull encrypted profiles to a remote store (S3, Google Drive, or a directory)"
+    )]
+    Sync {
+        #[command(subcommand)]
+        action: SyncAction,
+    },
     #[command(name = "version", about = "Print the version")]
     Version {
         #[arg(required = false, long = "verbose", short = 'v')]
@@ -208,4 +216,56 @@ impl LaunchCommandArg {
         }
         self.positional.iter().map(|s| s.as_str()).collect()
     }
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum SyncAction {
+    #[command(about = "Manage sync remotes")]
+    Remote {
+        #[command(subcommand)]
+        action: RemoteAction,
+    },
+    #[command(
+        about = "Upload profiles to the remote (all local profiles if none given)",
+        override_usage = "envio sync push [PROFILE]... [OPTIONS]"
+    )]
+    Push {
+        profiles: Vec<String>,
+        #[arg(long, short = 'r', help = "Remote name from sync.toml")]
+        remote: Option<String>,
+        #[arg(long, short = 'f', help = "Overwrite even if the remote changed")]
+        force: bool,
+    },
+    #[command(
+        about = "Download profiles from the remote (all remote profiles if none given)",
+        override_usage = "envio sync pull [PROFILE]... [OPTIONS]"
+    )]
+    Pull {
+        profiles: Vec<String>,
+        #[arg(long, short = 'r', help = "Remote name from sync.toml")]
+        remote: Option<String>,
+        #[arg(long, short = 'f', help = "Overwrite even if the local copy changed")]
+        force: bool,
+    },
+    #[command(about = "Show how each profile compares with the remote")]
+    Status {
+        #[arg(long, short = 'r', help = "Remote name from sync.toml")]
+        remote: Option<String>,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum RemoteAction {
+    #[command(about = "Add a remote interactively")]
+    Add {
+        #[arg(required = true)]
+        name: String,
+    },
+    #[command(about = "List configured remotes")]
+    List,
+    #[command(about = "Remove a remote")]
+    Remove {
+        #[arg(required = true)]
+        name: String,
+    },
 }
