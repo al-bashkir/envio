@@ -227,12 +227,27 @@ pub(crate) fn write_atomic(dest: &Path, bytes: &[u8]) -> Result<()> {
 
 /// Reject names that could escape the profiles directory or collide with
 /// temp files. Applied to CLI arguments and to names reported by remotes.
+///
+/// An allowlist, not a denylist: this is the first place a remote-supplied
+/// string becomes a local filesystem path, and a denylist kept missing
+/// cases. `C:evil` passed the old separator check, yet on Windows
+/// `PathBuf::push` replaces the whole path when the argument carries a
+/// prefix without a root, so `profiles_dir.join("C:evil.env")` resolves
+/// relative to the current directory on drive C — outside the sandbox. The
+/// character allowlist subsumes that, the separator check, and control
+/// characters. A trailing `.` is rejected as well: Windows silently strips
+/// it, so `work.` and `work` would name the same file.
 pub fn check_name(name: &str) -> Result<()> {
-    if name.is_empty()
-        || name == ".."
-        || name.starts_with('.')
-        || crate::utils::contains_path_separator(name)
-    {
+    let valid = !name.is_empty()
+        && name != ".."
+        && !name.starts_with('.')
+        && !name.ends_with('.')
+        // Spaces are not in the allowlist, so a trailing space (also
+        // silently stripped by Windows) is rejected here too.
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
+    if !valid {
         return Err(Error::Sync(format!("invalid profile name `{}`", name)));
     }
     Ok(())
@@ -893,11 +908,33 @@ mod dir_tests {
     fn check_name_rejects_paths() {
         assert!(check_name("work").is_ok());
         assert!(check_name("my-app_v2").is_ok());
+        assert!(check_name("a.b").is_ok());
+        assert!(check_name("PROD2").is_ok());
         assert!(check_name("").is_err());
         assert!(check_name("..").is_err());
         assert!(check_name(".hidden").is_err());
         assert!(check_name("a/b").is_err());
         assert!(check_name("a\\b").is_err());
+    }
+
+    #[test]
+    fn check_name_rejects_windows_hazards() {
+        // A drive-relative prefix: `profiles_dir.join("C:evil.env")` on
+        // Windows drops the profiles dir entirely and writes to drive C.
+        assert!(check_name("C:evil").is_err());
+        assert!(check_name("C:/evil").is_err());
+        assert!(check_name("C:\\evil").is_err());
+        // Windows strips a trailing dot or space, so these alias `work`.
+        assert!(check_name("work.").is_err());
+        assert!(check_name("work ").is_err());
+        // Spaces anywhere, control characters, and other punctuation are
+        // outside the allowlist.
+        assert!(check_name("my app").is_err());
+        assert!(check_name("wo\u{7}rk").is_err());
+        assert!(check_name("wo\nrk").is_err());
+        assert!(check_name("wo\0rk").is_err());
+        assert!(check_name("*").is_err());
+        assert!(check_name("caf\u{e9}").is_err());
     }
 
     #[test]
