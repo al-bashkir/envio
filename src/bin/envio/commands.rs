@@ -666,6 +666,10 @@ impl Command {
                 ));
             }
 
+            Command::Sync { action } => {
+                crate::sync_cli::run(action, vim_mode)?;
+            }
+
             Command::Version { verbose, check } => {
                 println!("{} {}", "Version".green(), env!("BUILD_VERSION"));
                 if *verbose {

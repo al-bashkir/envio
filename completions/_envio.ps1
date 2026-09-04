@@ -33,6 +33,7 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('update', 'update', [CompletionResultType]::ParameterValue, 'Update environment variables in a profile')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export a profile to a file if no file is specified it will be exported to a file named .env')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Download a profile over the internet and import it into the system or import a locally stored profile into your current envio installation')
+            [CompletionResult]::new('sync', 'sync', [CompletionResultType]::ParameterValue, 'Push and pull encrypted profiles to a remote store (S3, Google Drive, or a directory)')
             [CompletionResult]::new('version', 'version', [CompletionResultType]::ParameterValue, 'Print the version')
             [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completion scripts')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -161,6 +162,119 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
+        'envio;sync' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('remote', 'remote', [CompletionResultType]::ParameterValue, 'Manage sync remotes')
+            [CompletionResult]::new('push', 'push', [CompletionResultType]::ParameterValue, 'Upload profiles to the remote (all local profiles if none given)')
+            [CompletionResult]::new('pull', 'pull', [CompletionResultType]::ParameterValue, 'Download profiles from the remote (all remote profiles if none given)')
+            [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'Show how each profile compares with the remote')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'envio;sync;remote' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Add a remote interactively')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List configured remotes')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a remote')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'envio;sync;remote;add' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'envio;sync;remote;list' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'envio;sync;remote;remove' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'envio;sync;remote;help' {
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Add a remote interactively')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List configured remotes')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a remote')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'envio;sync;remote;help;add' {
+            break
+        }
+        'envio;sync;remote;help;list' {
+            break
+        }
+        'envio;sync;remote;help;remove' {
+            break
+        }
+        'envio;sync;remote;help;help' {
+            break
+        }
+        'envio;sync;push' {
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Remote name from sync.toml')
+            [CompletionResult]::new('--remote', 'remote', [CompletionResultType]::ParameterName, 'Remote name from sync.toml')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Overwrite even if the remote changed')
+            [CompletionResult]::new('--force', 'force', [CompletionResultType]::ParameterName, 'Overwrite even if the remote changed')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'envio;sync;pull' {
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Remote name from sync.toml')
+            [CompletionResult]::new('--remote', 'remote', [CompletionResultType]::ParameterName, 'Remote name from sync.toml')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Overwrite even if the local copy changed')
+            [CompletionResult]::new('--force', 'force', [CompletionResultType]::ParameterName, 'Overwrite even if the local copy changed')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'envio;sync;status' {
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Remote name from sync.toml')
+            [CompletionResult]::new('--remote', 'remote', [CompletionResultType]::ParameterName, 'Remote name from sync.toml')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'envio;sync;help' {
+            [CompletionResult]::new('remote', 'remote', [CompletionResultType]::ParameterValue, 'Manage sync remotes')
+            [CompletionResult]::new('push', 'push', [CompletionResultType]::ParameterValue, 'Upload profiles to the remote (all local profiles if none given)')
+            [CompletionResult]::new('pull', 'pull', [CompletionResultType]::ParameterValue, 'Download profiles from the remote (all remote profiles if none given)')
+            [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'Show how each profile compares with the remote')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'envio;sync;help;remote' {
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Add a remote interactively')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List configured remotes')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a remote')
+            break
+        }
+        'envio;sync;help;remote;add' {
+            break
+        }
+        'envio;sync;help;remote;list' {
+            break
+        }
+        'envio;sync;help;remote;remove' {
+            break
+        }
+        'envio;sync;help;push' {
+            break
+        }
+        'envio;sync;help;pull' {
+            break
+        }
+        'envio;sync;help;status' {
+            break
+        }
+        'envio;sync;help;help' {
+            break
+        }
         'envio;version' {
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'v')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'verbose')
@@ -185,6 +299,7 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             [CompletionResult]::new('update', 'update', [CompletionResultType]::ParameterValue, 'Update environment variables in a profile')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export a profile to a file if no file is specified it will be exported to a file named .env')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Download a profile over the internet and import it into the system or import a locally stored profile into your current envio installation')
+            [CompletionResult]::new('sync', 'sync', [CompletionResultType]::ParameterValue, 'Push and pull encrypted profiles to a remote store (S3, Google Drive, or a directory)')
             [CompletionResult]::new('version', 'version', [CompletionResultType]::ParameterValue, 'Print the version')
             [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completion scripts')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -218,6 +333,37 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;help;import' {
+            break
+        }
+        'envio;help;sync' {
+            [CompletionResult]::new('remote', 'remote', [CompletionResultType]::ParameterValue, 'Manage sync remotes')
+            [CompletionResult]::new('push', 'push', [CompletionResultType]::ParameterValue, 'Upload profiles to the remote (all local profiles if none given)')
+            [CompletionResult]::new('pull', 'pull', [CompletionResultType]::ParameterValue, 'Download profiles from the remote (all remote profiles if none given)')
+            [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'Show how each profile compares with the remote')
+            break
+        }
+        'envio;help;sync;remote' {
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Add a remote interactively')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List configured remotes')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a remote')
+            break
+        }
+        'envio;help;sync;remote;add' {
+            break
+        }
+        'envio;help;sync;remote;list' {
+            break
+        }
+        'envio;help;sync;remote;remove' {
+            break
+        }
+        'envio;help;sync;push' {
+            break
+        }
+        'envio;help;sync;pull' {
+            break
+        }
+        'envio;help;sync;status' {
             break
         }
         'envio;help;version' {

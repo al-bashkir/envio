@@ -1,6 +1,7 @@
 mod clap_app;
 mod cli;
 mod commands;
+mod sync_cli;
 mod utils;
 mod version;
 
