@@ -9,7 +9,7 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use reqwest::blocking::{Client, Response};
 use sha2::Sha256;
 
-use super::{sha256_hex, RemoteEntry};
+use super::{http_client, sha256_hex, RemoteEntry};
 use crate::error::{Error, Result};
 
 /// SHA-256 of an empty body, used for GET/HEAD/LIST.
@@ -25,11 +25,26 @@ const AWS_ENCODE: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'~');
 const AWS_PATH_ENCODE: &AsciiSet = &AWS_ENCODE.remove(b'/');
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Creds {
     pub access_key: String,
     pub secret_key: String,
     pub session_token: Option<String>,
+}
+
+/// Hand-written so a stray `{:?}` — a `dbg!`, a panic message, an error
+/// wrapping the struct — can never print the signing key.
+impl std::fmt::Debug for Creds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Creds")
+            .field("access_key", &self.access_key)
+            .field("secret_key", &"[redacted]")
+            .field(
+                "session_token",
+                &self.session_token.as_ref().map(|_| "[redacted]"),
+            )
+            .finish()
+    }
 }
 
 /// `AWS_*` env vars first, then `~/.aws/credentials` (`[$AWS_PROFILE]` or
@@ -244,7 +259,7 @@ impl S3 {
             endpoint,
             host,
             creds: load_credentials()?,
-            client: Client::new(),
+            client: http_client()?,
         })
     }
 
@@ -412,6 +427,19 @@ mod tests {
              SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, \
              Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41"
         );
+    }
+
+    #[test]
+    fn debug_redacts_the_signing_key() {
+        let mut creds = example_creds();
+        creds.session_token = Some("FwoGZXIvYXdzEXAMPLE".into());
+        let shown = format!("{:?}", creds);
+        assert!(!shown.contains(&creds.secret_key), "{}", shown);
+        assert!(!shown.contains("FwoGZXIvYXdzEXAMPLE"), "{}", shown);
+        assert_eq!(shown.matches("[redacted]").count(), 2, "{}", shown);
+        // The key *id* is not a secret and stays, so a debug print is still
+        // useful for telling two credential sets apart.
+        assert!(shown.contains("AKIAIOSFODNN7EXAMPLE"), "{}", shown);
     }
 
     #[test]

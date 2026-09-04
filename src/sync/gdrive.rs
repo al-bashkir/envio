@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use reqwest::blocking::{Client, Response};
 use serde::Deserialize;
 
-use super::{sha256_hex, RemoteEntry};
+use super::{http_client, sha256_hex, RemoteEntry};
 use crate::error::{Error, Result};
 
 const DEVICE_URL: &str = "https://oauth2.googleapis.com/device/code";
@@ -19,19 +19,35 @@ const UPLOAD: &str = "https://www.googleapis.com/upload/drive/v3/files";
 const FOLDER_MIME: &str = "application/vnd.google-apps.folder";
 pub(crate) const BOUNDARY: &str = "envio-sync-boundary-7f3a9c";
 
+/// Pull a human-readable reason out of an error body.
+///
+/// Google uses two shapes. The Drive API returns
+/// `{"error": {"message": "..."}}`, but the OAuth token endpoint returns
+/// `{"error": "invalid_grant", "error_description": "..."}` — which is the
+/// most likely real-world failure, an expired or revoked refresh token. Only
+/// the message is used; the body can contain request echoes.
+fn error_message(body: &str) -> String {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(body) {
+        for candidate in [&v["error_description"], &v["error"], &v["error"]["message"]] {
+            if let Some(msg) = candidate.as_str().map(str::trim).filter(|m| !m.is_empty()) {
+                return msg.to_string();
+            }
+        }
+    }
+    body.lines().next().unwrap_or("").trim().to_string()
+}
+
 fn check(resp: Response, what: &str) -> Result<Response> {
     let status = resp.status();
     if status.is_success() {
         return Ok(resp);
     }
     let body = resp.text().unwrap_or_default();
-    let msg = serde_json::from_str::<serde_json::Value>(&body)
-        .ok()
-        .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
-        .unwrap_or_else(|| body.lines().next().unwrap_or("").to_string());
     Err(Error::Sync(format!(
         "Google Drive {}: {} {}",
-        what, status, msg
+        what,
+        status,
+        error_message(&body)
     )))
 }
 
@@ -46,7 +62,7 @@ pub fn device_login(client_id: &str, client_secret: &str) -> Result<String> {
         interval: u64,
         expires_in: u64,
     }
-    let client = Client::new();
+    let client = http_client()?;
     let resp = client
         .post(DEVICE_URL)
         .form(&[("client_id", client_id), ("scope", SCOPE)])
@@ -99,7 +115,7 @@ pub fn device_login(client_id: &str, client_secret: &str) -> Result<String> {
 
 /// Exchange a refresh token for a short-lived access token.
 pub fn access_token(client_id: &str, client_secret: &str, refresh_token: &str) -> Result<String> {
-    let resp = Client::new()
+    let resp = http_client()?
         .post(TOKEN_URL)
         .form(&[
             ("client_id", client_id),
@@ -117,7 +133,7 @@ pub fn access_token(client_id: &str, client_secret: &str, refresh_token: &str) -
 
 /// Create a folder in My Drive and return its id.
 pub fn create_folder(access_token: &str, name: &str) -> Result<String> {
-    let resp = Client::new()
+    let resp = http_client()?
         .post(API)
         .bearer_auth(access_token)
         .json(&serde_json::json!({ "name": name, "mimeType": FOLDER_MIME }))
@@ -186,7 +202,7 @@ impl Drive {
         Ok(Drive {
             token: access_token(client_id, client_secret, refresh_token)?,
             folder_id: folder_id.to_string(),
-            client: Client::new(),
+            client: http_client()?,
         })
     }
 
@@ -300,6 +316,38 @@ mod tests {
         assert_eq!(q_escape("it's"), "it\\'s");
         assert_eq!(q_escape("a\\b"), "a\\\\b");
         assert_eq!(q_escape("plain"), "plain");
+    }
+
+    #[test]
+    fn error_message_understands_both_google_envelopes() {
+        // OAuth token endpoint: the expired/revoked refresh token case.
+        assert_eq!(
+            error_message(
+                r#"{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"#
+            ),
+            "Token has been expired or revoked."
+        );
+        // Same envelope with no description: fall back to the error code.
+        assert_eq!(
+            error_message(r#"{"error":"invalid_client"}"#),
+            "invalid_client"
+        );
+        // Drive API envelope.
+        assert_eq!(
+            error_message(r#"{"error":{"code":404,"message":"File not found: x."}}"#),
+            "File not found: x."
+        );
+        // Not JSON at all, or JSON with nothing recognizable: first line
+        // only, never the whole body.
+        assert_eq!(
+            error_message("<html>\n<body>502 Bad Gateway</body>"),
+            "<html>"
+        );
+        assert_eq!(
+            error_message(r#"{"unexpected":true}"#),
+            r#"{"unexpected":true}"#
+        );
+        assert_eq!(error_message(""), "");
     }
 
     #[test]
