@@ -231,11 +231,34 @@ pub struct Report {
 }
 
 /// Names of every `<name>.env` in the profiles directory, sorted.
+///
+/// Unlike `dir_list`, this never reads file contents — it only needs names,
+/// so a directory (or anything else unreadable as a profile) is skipped
+/// rather than aborting the whole listing. `read_dir` itself failing (a
+/// missing or unreadable profiles directory) is still a whole-operation
+/// failure and propagates.
 pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
-    Ok(dir_list(profiles_dir)?
-        .into_iter()
-        .map(|e| e.name)
-        .collect())
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(profiles_dir)? {
+        let entry = entry?;
+        let is_file = match entry.file_type() {
+            Ok(t) => t.is_file(),
+            Err(_) => entry.path().is_file(),
+        };
+        if !is_file {
+            continue;
+        }
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str().and_then(|n| n.strip_suffix(".env")) else {
+            continue;
+        };
+        if check_name(name).is_err() {
+            continue;
+        }
+        out.push(name.to_string());
+    }
+    out.sort();
+    Ok(out)
 }
 
 /// One remote bound to one local profiles directory and state file.
@@ -1014,6 +1037,40 @@ mod engine_tests {
         assert_eq!(by_name["aaa"], &Outcome::Uploaded);
         assert_eq!(by_name["zzz"], &Outcome::Uploaded);
         assert!(matches!(by_name["mmm"], Outcome::Failed(_)));
+
+        assert_eq!(f.remote.get("aaa").unwrap(), b"aaa-cipher");
+        assert_eq!(f.remote.get("zzz").unwrap(), b"zzz-cipher");
+
+        let state = SyncState::load(&f.root.join("a/sync-state.toml")).unwrap();
+        assert_eq!(
+            state.get("test", "aaa"),
+            Some(sha256_hex(b"aaa-cipher").as_str())
+        );
+        assert_eq!(
+            state.get("test", "zzz"),
+            Some(sha256_hex(b"zzz-cipher").as_str())
+        );
+    }
+
+    #[test]
+    fn batch_push_skips_unreadable_local_entry_instead_of_aborting() {
+        let f = Fixture::new("batch-skip-junk-entry");
+        f.write("a", "aaa", b"aaa-cipher");
+        f.write("a", "zzz", b"zzz-cipher");
+        let profiles_dir = f.root.join("a/profiles");
+        std::fs::create_dir(profiles_dir.join("mmm.env")).unwrap();
+
+        // Direct unit check: local_profile_names itself skips the directory
+        // entry rather than erroring out.
+        let names = local_profile_names(&profiles_dir).unwrap();
+        assert_eq!(names, vec!["aaa".to_string(), "zzz".to_string()]);
+
+        let reports = f.sync("a").push(&[], false).unwrap();
+        let by_name: BTreeMap<&str, &Outcome> = outcomes(&reports).into_iter().collect();
+        assert_eq!(by_name.len(), 2);
+        assert_eq!(by_name["aaa"], &Outcome::Uploaded);
+        assert_eq!(by_name["zzz"], &Outcome::Uploaded);
+        assert!(!by_name.contains_key("mmm"));
 
         assert_eq!(f.remote.get("aaa").unwrap(), b"aaa-cipher");
         assert_eq!(f.remote.get("zzz").unwrap(), b"zzz-cipher");
