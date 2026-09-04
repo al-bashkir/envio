@@ -6,6 +6,7 @@
 
 use sha2::{Digest, Sha256};
 
+pub mod gdrive;
 pub mod s3;
 
 use std::collections::BTreeMap;
@@ -137,9 +138,12 @@ impl Remote {
                 region,
                 endpoint,
             } => s3::S3::new(bucket, prefix, region, endpoint.as_deref())?.list(),
-            Remote::GoogleDrive { .. } => Err(Error::Sync(
-                "Google Drive backend not implemented yet".into(),
-            )),
+            Remote::GoogleDrive {
+                client_id,
+                client_secret,
+                refresh_token,
+                folder_id,
+            } => gdrive::Drive::new(client_id, client_secret, refresh_token, folder_id)?.list(),
         }
     }
 
@@ -154,9 +158,12 @@ impl Remote {
                 region,
                 endpoint,
             } => s3::S3::new(bucket, prefix, region, endpoint.as_deref())?.get(name),
-            Remote::GoogleDrive { .. } => Err(Error::Sync(
-                "Google Drive backend not implemented yet".into(),
-            )),
+            Remote::GoogleDrive {
+                client_id,
+                client_secret,
+                refresh_token,
+                folder_id,
+            } => gdrive::Drive::new(client_id, client_secret, refresh_token, folder_id)?.get(name),
         }
     }
 
@@ -171,9 +178,13 @@ impl Remote {
                 region,
                 endpoint,
             } => s3::S3::new(bucket, prefix, region, endpoint.as_deref())?.put(name, bytes),
-            Remote::GoogleDrive { .. } => Err(Error::Sync(
-                "Google Drive backend not implemented yet".into(),
-            )),
+            Remote::GoogleDrive {
+                client_id,
+                client_secret,
+                refresh_token,
+                folder_id,
+            } => gdrive::Drive::new(client_id, client_secret, refresh_token, folder_id)?
+                .put(name, bytes),
         }
     }
 }
