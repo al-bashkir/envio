@@ -63,6 +63,56 @@ envio load my-profile | source
 eval "$(envio unload my-profile)"
 ```
 
+## Syncing profiles between machines
+
+`envio sync` copies your encrypted profiles to a remote and back. Profiles
+stay encrypted in transit and at rest on the remote; the remote only ever
+sees ciphertext, and no passphrase or GPG key is needed to sync.
+
+```sh
+envio sync remote add work      # interactive: pick s3, google_drive, or dir
+envio sync push                 # upload every local profile
+envio sync pull                 # on another machine: download every profile
+envio sync status               # compare local and remote
+envio sync push my-app --force  # overwrite the remote copy after a conflict
+```
+
+Push and pull refuse to overwrite a side that changed since the last sync.
+`--force` overrides. With several remotes, pass `--remote NAME` or set
+`default = "NAME"` at the top of `~/.envio/sync.toml`.
+
+### S3 (AWS, MinIO, Cloudflare R2, Backblaze B2)
+
+Credentials come from `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (and
+optional `AWS_SESSION_TOKEN`), or from `~/.aws/credentials` using
+`AWS_PROFILE` or `[default]`. They are never written to `~/.envio/sync.toml`.
+`remote add` asks for bucket, prefix, region and an optional endpoint for
+non-AWS providers.
+
+### Google Drive
+
+Google requires an OAuth client that you own:
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/) create a
+   project and enable the **Google Drive API**.
+2. Under **APIs & Services → Credentials** create an **OAuth client ID** of
+   type **TVs and Limited Input devices**.
+3. Run `envio sync remote add drive`, choose `google_drive`, and paste the
+   client ID and secret. envio prints a URL and a code; approve it in any
+   browser. envio only gets access to files it created (scope `drive.file`).
+
+Unlike S3 credentials, the OAuth client secret and the refresh token are
+stored in `~/.envio/sync.toml` in **plaintext** (file mode `0600` on Unix,
+so only your user account can read it — but they are not encrypted). Anyone
+who reads that file can sync to your Drive folder until you revoke access
+in your [Google Account permissions](https://myaccount.google.com/permissions).
+
+### SMB, NFS, Proton Drive, or any mounted folder
+
+Mount the share with your OS or the provider's desktop client, then add a
+`dir` remote pointing at a folder inside it. Proton Drive has no public
+API, so this is the supported way to use it.
+
 ## Contributors
 
 <table>
