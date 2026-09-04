@@ -6,6 +6,131 @@
 
 use sha2::{Digest, Sha256};
 
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+
+use crate::error::{Error, Result};
+
+/// A configured remote. Doubles as the on-disk config shape in `sync.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Remote {
+    S3 {
+        bucket: String,
+        prefix: String,
+        region: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        endpoint: Option<String>,
+    },
+    GoogleDrive {
+        client_id: String,
+        client_secret: String,
+        refresh_token: String,
+        folder_id: String,
+    },
+    Dir {
+        path: PathBuf,
+    },
+}
+
+/// Contents of `~/.envio/sync.toml`.
+#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    #[serde(default)]
+    pub remotes: BTreeMap<String, Remote>,
+}
+
+impl SyncConfig {
+    /// Read the config. A missing file is an empty config.
+    pub fn load(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let text = std::fs::read_to_string(path)?;
+        toml::from_str(&text).map_err(|e| Error::Deserialization(e.to_string()))
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        let text = toml::to_string(self).map_err(|e| Error::Serialization(e.to_string()))?;
+        write_private(path, text.as_bytes())
+    }
+
+    /// Pick a remote: the explicit `name`, else `default`, else the only
+    /// one configured. Errors list the available names.
+    pub fn select(&self, name: Option<&str>) -> Result<(&str, &Remote)> {
+        let name = match name.or(self.default.as_deref()) {
+            Some(n) => n,
+            None if self.remotes.len() == 1 => self.remotes.keys().next().unwrap(),
+            None if self.remotes.is_empty() => {
+                return Err(Error::Sync(
+                    "no remotes configured, run `envio sync remote add <NAME>`".into(),
+                ))
+            }
+            None => {
+                let names: Vec<&str> = self.remotes.keys().map(String::as_str).collect();
+                return Err(Error::Sync(format!(
+                    "several remotes configured, pass --remote <NAME>: {}",
+                    names.join(", ")
+                )));
+            }
+        };
+        self.remotes
+            .get_key_value(name)
+            .map(|(k, v)| (k.as_str(), v))
+            .ok_or_else(|| Error::Sync(format!("remote `{}` not found in sync.toml", name)))
+    }
+}
+
+/// Contents of `~/.envio/sync-state.toml`: remote name -> profile name ->
+/// SHA-256 of the ciphertext at the last successful sync.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SyncState(BTreeMap<String, BTreeMap<String, String>>);
+
+impl SyncState {
+    pub fn load(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let text = std::fs::read_to_string(path)?;
+        toml::from_str(&text).map_err(|e| Error::Deserialization(e.to_string()))
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        let text = toml::to_string(self).map_err(|e| Error::Serialization(e.to_string()))?;
+        write_private(path, text.as_bytes())
+    }
+
+    pub fn get(&self, remote: &str, profile: &str) -> Option<&str> {
+        self.0.get(remote)?.get(profile).map(String::as_str)
+    }
+
+    pub fn set(&mut self, remote: &str, profile: &str, sha256: String) {
+        self.0
+            .entry(remote.to_string())
+            .or_default()
+            .insert(profile.to_string(), sha256);
+    }
+}
+
+/// Write `bytes` to `path`, creating it with mode 0600 on Unix.
+pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
+    use std::io::Write;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    opts.open(path)?.write_all(bytes)?;
+    Ok(())
+}
+
 /// Relationship between the local copy, the remote copy, and the last
 /// synced hash of one profile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,5 +237,122 @@ mod decide_tests {
             sha256_hex(b"abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn tmp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("envio-sync-{}-{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn three_remotes() -> SyncConfig {
+        let mut cfg = SyncConfig::default();
+        cfg.default = Some("work".into());
+        cfg.remotes.insert(
+            "work".into(),
+            Remote::S3 {
+                bucket: "my-secrets".into(),
+                prefix: "envio".into(),
+                region: "eu-central-1".into(),
+                endpoint: None,
+            },
+        );
+        cfg.remotes.insert(
+            "personal".into(),
+            Remote::GoogleDrive {
+                client_id: "id".into(),
+                client_secret: "secret".into(),
+                refresh_token: "rt".into(),
+                folder_id: "fid".into(),
+            },
+        );
+        cfg.remotes.insert(
+            "nas".into(),
+            Remote::Dir {
+                path: PathBuf::from("/mnt/nas/envio"),
+            },
+        );
+        cfg
+    }
+
+    #[test]
+    fn config_round_trips_through_toml() {
+        let dir = tmp("config-rt");
+        let path = dir.join("sync.toml");
+        let cfg = three_remotes();
+        cfg.save(&path).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("[remotes.work]"), "{}", text);
+        assert!(text.contains("type = \"s3\""), "{}", text);
+        assert!(text.contains("type = \"google_drive\""), "{}", text);
+        assert!(text.contains("type = \"dir\""), "{}", text);
+        let back = SyncConfig::load(&path).unwrap();
+        assert_eq!(back, cfg);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn missing_config_is_empty() {
+        let dir = tmp("config-missing");
+        let cfg = SyncConfig::load(&dir.join("nope.toml")).unwrap();
+        assert!(cfg.remotes.is_empty());
+        assert_eq!(cfg.default, None);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn select_prefers_explicit_then_default_then_only() {
+        let cfg = three_remotes();
+        assert_eq!(cfg.select(Some("nas")).unwrap().0, "nas");
+        assert_eq!(cfg.select(None).unwrap().0, "work");
+        assert!(cfg.select(Some("missing")).is_err());
+
+        let mut one = SyncConfig::default();
+        one.remotes
+            .insert("only".into(), Remote::Dir { path: "/x".into() });
+        assert_eq!(one.select(None).unwrap().0, "only");
+
+        let mut two = three_remotes();
+        two.default = None;
+        let err = two.select(None).unwrap_err().to_string();
+        assert!(err.contains("--remote"), "{}", err);
+        assert!(err.contains("nas"), "{}", err);
+
+        assert!(SyncConfig::default().select(None).is_err());
+    }
+
+    #[test]
+    fn state_round_trips_and_defaults_to_none() {
+        let dir = tmp("state-rt");
+        let path = dir.join("sync-state.toml");
+        let mut st = SyncState::load(&path).unwrap();
+        assert_eq!(st.get("work", "app"), None);
+        st.set("work", "app", "abc".into());
+        st.set("work", "with space", "def".into());
+        st.save(&path).unwrap();
+        let back = SyncState::load(&path).unwrap();
+        assert_eq!(back.get("work", "app"), Some("abc"));
+        assert_eq!(back.get("work", "with space"), Some("def"));
+        assert_eq!(back.get("other", "app"), None);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn files_are_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tmp("perms");
+        let path = dir.join("sync.toml");
+        three_remotes().save(&path).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
