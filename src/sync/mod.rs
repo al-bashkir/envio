@@ -518,9 +518,33 @@ impl Sync<'_> {
     }
 }
 
-/// Write `bytes` to `path`, creating it with mode 0600 on Unix.
+/// Write `bytes` to `path` with mode 0600 on Unix, atomically.
+///
+/// Writes a sibling temp file and renames it over `path`, like
+/// `write_atomic`, for two reasons beyond crash safety:
+///
+/// - `OpenOptions::mode` is honoured only when the OS creates the file, so
+///   truncating an existing `sync.toml` left whatever mode it already had.
+///   A config created before this (or by an editor, or with a permissive
+///   umask) would keep 0644 forever while holding the Google OAuth client
+///   secret and refresh token in plaintext. Renaming a fresh 0600 temp file
+///   over it fixes the mode of an existing file too.
+/// - `truncate` + `write_all` is not atomic. A kill, panic or full disk
+///   between them left a zero-length or partial `sync.toml`, destroying
+///   every remote definition — including the refresh token, which cannot be
+///   recovered without redoing the whole OAuth flow.
 pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
     use std::io::Write;
+    let file_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| Error::Sync(format!("bad path {}", path.display())))?;
+    // `~/.envio` may not exist yet, or the user may have removed it.
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)?;
+    }
+    let tmp = path.with_file_name(format!(".{}.tmp", file_name));
+
     let mut opts = std::fs::OpenOptions::new();
     opts.write(true).create(true).truncate(true);
     #[cfg(unix)]
@@ -528,7 +552,15 @@ pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
         use std::os::unix::fs::OpenOptionsExt;
         opts.mode(0o600);
     }
-    opts.open(path)?.write_all(bytes)?;
+    opts.open(&tmp)?.write_all(bytes)?;
+    // Belt and braces: `mode` above did nothing if the temp file already
+    // existed, so set the mode explicitly before it becomes the real file.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))?;
+    }
+    std::fs::rename(&tmp, path)?;
     Ok(())
 }
 
@@ -758,10 +790,55 @@ mod config_tests {
     fn files_are_private() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tmp("perms");
+
+        // create path: a config written from scratch is 0600
         let path = dir.join("sync.toml");
         three_remotes().save(&path).unwrap();
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
+
+        // overwrite path: a config that already exists world-readable must
+        // come out 0600 too. `OpenOptions::mode` alone did not do this, so a
+        // config created before the fix kept leaking the Drive refresh token.
+        let existing = dir.join("existing.toml");
+        std::fs::write(&existing, b"stale = true\n").unwrap();
+        std::fs::set_permissions(&existing, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(
+            std::fs::metadata(&existing).unwrap().permissions().mode() & 0o777,
+            0o644,
+            "test setup"
+        );
+        three_remotes().save(&existing).unwrap();
+        let mode = std::fs::metadata(&existing).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "existing file must be tightened to 0600");
+        assert_eq!(SyncConfig::load(&existing).unwrap(), three_remotes());
+
+        // state files get the same treatment
+        let state_path = dir.join("sync-state.toml");
+        std::fs::write(&state_path, b"").unwrap();
+        std::fs::set_permissions(&state_path, std::fs::Permissions::from_mode(0o666)).unwrap();
+        SyncState::default().save(&state_path).unwrap();
+        assert_eq!(
+            std::fs::metadata(&state_path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        // no temp files left behind
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{:?}", leftovers);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn save_creates_a_missing_parent_directory() {
+        let dir = tmp("missing-parent");
+        let path = dir.join("nested").join("deeper").join("sync.toml");
+        three_remotes().save(&path).unwrap();
+        assert_eq!(SyncConfig::load(&path).unwrap(), three_remotes());
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
