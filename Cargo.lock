@@ -625,7 +625,6 @@ name = "envio"
 version = "0.7.0"
 dependencies = [
  "age",
- "base64 0.21.0",
  "bincode",
  "chrono",
  "clap",

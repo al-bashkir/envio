@@ -120,6 +120,26 @@ impl SyncState {
     }
 }
 
+/// Wall-clock ceiling on every HTTP call a backend makes. Without it a
+/// misconfigured, firewalled or black-holed endpoint hangs the CLI forever
+/// with no output at all.
+const HTTP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// A blocking HTTP client with `HTTP_TIMEOUT` applied. Every backend must
+/// build its client through here.
+pub(crate) fn http_client() -> Result<reqwest::blocking::Client> {
+    reqwest::blocking::Client::builder()
+        .timeout(HTTP_TIMEOUT)
+        .build()
+        .map_err(|e| {
+            Error::Sync(format!(
+                "could not build an HTTP client with a {}s timeout: {}",
+                HTTP_TIMEOUT.as_secs(),
+                e
+            ))
+        })
+}
+
 /// One profile as seen on a remote.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteEntry {
