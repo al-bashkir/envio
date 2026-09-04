@@ -253,9 +253,8 @@ mod config_tests {
     }
 
     fn three_remotes() -> SyncConfig {
-        let mut cfg = SyncConfig::default();
-        cfg.default = Some("work".into());
-        cfg.remotes.insert(
+        let mut remotes = BTreeMap::new();
+        remotes.insert(
             "work".into(),
             Remote::S3 {
                 bucket: "my-secrets".into(),
@@ -264,7 +263,7 @@ mod config_tests {
                 endpoint: None,
             },
         );
-        cfg.remotes.insert(
+        remotes.insert(
             "personal".into(),
             Remote::GoogleDrive {
                 client_id: "id".into(),
@@ -273,13 +272,16 @@ mod config_tests {
                 folder_id: "fid".into(),
             },
         );
-        cfg.remotes.insert(
+        remotes.insert(
             "nas".into(),
             Remote::Dir {
                 path: PathBuf::from("/mnt/nas/envio"),
             },
         );
-        cfg
+        SyncConfig {
+            default: Some("work".into()),
+            remotes,
+        }
     }
 
     #[test]
@@ -314,13 +316,19 @@ mod config_tests {
         assert_eq!(cfg.select(None).unwrap().0, "work");
         assert!(cfg.select(Some("missing")).is_err());
 
-        let mut one = SyncConfig::default();
-        one.remotes
-            .insert("only".into(), Remote::Dir { path: "/x".into() });
+        let mut one_remotes = BTreeMap::new();
+        one_remotes.insert("only".into(), Remote::Dir { path: "/x".into() });
+        let one = SyncConfig {
+            default: None,
+            remotes: one_remotes,
+        };
         assert_eq!(one.select(None).unwrap().0, "only");
 
-        let mut two = three_remotes();
-        two.default = None;
+        let two_base = three_remotes();
+        let two = SyncConfig {
+            default: None,
+            ..two_base
+        };
         let err = two.select(None).unwrap_err().to_string();
         assert!(err.contains("--remote"), "{}", err);
         assert!(err.contains("nas"), "{}", err);
