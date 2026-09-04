@@ -284,6 +284,52 @@ mod tests {
         assert!(err.contains("1 of 2"), "{}", err);
     }
 
+    /// `envio sync remote list` runs `describe` on every configured remote,
+    /// so anything it returns lands on the user's terminal — and in shared
+    /// terminals, screenshots, pasted bug reports and CI logs. The Drive
+    /// client secret and refresh token must never be part of that.
+    #[test]
+    fn describe_never_prints_drive_secrets() {
+        let remote = Remote::GoogleDrive {
+            client_id: "CLIENT-ID-SENTINEL.apps.googleusercontent.com".into(),
+            client_secret: "CLIENT-SECRET-SENTINEL".into(),
+            refresh_token: "REFRESH-TOKEN-SENTINEL".into(),
+            folder_id: "FOLDER-ID-SENTINEL".into(),
+        };
+        let shown = describe(&remote);
+        assert!(shown.contains("FOLDER-ID-SENTINEL"), "{}", shown);
+        assert!(shown.contains("google_drive"), "{}", shown);
+        assert!(!shown.contains("CLIENT-SECRET-SENTINEL"), "{}", shown);
+        assert!(!shown.contains("REFRESH-TOKEN-SENTINEL"), "{}", shown);
+    }
+
+    #[test]
+    fn describe_shows_the_non_secret_locators() {
+        // S3 keeps credentials out of the config entirely, so everything
+        // here is safe to print — but it must actually be printed, since
+        // this is how a user tells two buckets apart.
+        let s3 = Remote::S3 {
+            bucket: "my-secrets".into(),
+            prefix: "envio".into(),
+            region: "eu-central-1".into(),
+            endpoint: Some("http://localhost:9000".into()),
+        };
+        let shown = describe(&s3);
+        for expected in ["my-secrets", "envio", "eu-central-1", "localhost:9000"] {
+            assert!(
+                shown.contains(expected),
+                "{} missing from {}",
+                expected,
+                shown
+            );
+        }
+
+        let dir = Remote::Dir {
+            path: PathBuf::from("/mnt/nas/envio"),
+        };
+        assert!(describe(&dir).contains("/mnt/nas/envio"));
+    }
+
     #[test]
     fn a_clean_run_is_ok() {
         let reports = vec![
