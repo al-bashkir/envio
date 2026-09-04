@@ -288,7 +288,16 @@ impl Sync<'_> {
 
         let mut reports = Vec::with_capacity(names.len());
         for name in names {
-            let local = self.local_bytes(&name)?;
+            let local = match self.local_bytes(&name) {
+                Ok(local) => local,
+                Err(e) => {
+                    reports.push(Report {
+                        profile: name,
+                        outcome: Outcome::Failed(e.to_string()),
+                    });
+                    continue;
+                }
+            };
             let local_hash = local.as_deref().map(sha256_hex);
             let remote_hash = remote.get(&name).map(String::as_str);
             let status = decide(
@@ -344,7 +353,17 @@ impl Sync<'_> {
 
         let mut reports = Vec::with_capacity(names.len());
         for name in names {
-            let local_hash = self.local_bytes(&name)?.map(|b| sha256_hex(&b));
+            let local = match self.local_bytes(&name) {
+                Ok(local) => local,
+                Err(e) => {
+                    reports.push(Report {
+                        profile: name,
+                        outcome: Outcome::Failed(e.to_string()),
+                    });
+                    continue;
+                }
+            };
+            let local_hash = local.map(|b| sha256_hex(&b));
             let remote_hash = remote.get(&name).map(String::as_str);
             let status = decide(
                 local_hash.as_deref(),
@@ -967,5 +986,46 @@ mod engine_tests {
         assert_eq!(status["remote-ahead"], Status::RemoteAhead);
         assert_eq!(status["only-local"], Status::OnlyLocal);
         assert_eq!(status["only-remote"], Status::OnlyRemote);
+    }
+
+    #[test]
+    fn hard_local_read_error_mid_batch_does_not_lose_batch() {
+        let f = Fixture::new("hard-local-error");
+        f.write("a", "aaa", b"aaa-cipher");
+        f.write("a", "zzz", b"zzz-cipher");
+        // A directory where a profile file should be: reading it fails with
+        // something other than NotFound.
+        //
+        // Named explicitly (not `push(&[], false)`): an empty-slice push
+        // first calls `local_profile_names`, which (via `dir_list`) reads
+        // every entry's bytes to compute its remote-listing sha256 and would
+        // itself error out on this directory before the per-profile loop —
+        // a separate, pre-existing issue in `dir_list`, out of scope here.
+        // Naming the profiles explicitly routes straight into the
+        // per-profile loop and exercises the `local_bytes` fix directly.
+        std::fs::create_dir(f.root.join("a/profiles/mmm.env")).unwrap();
+
+        let reports = f
+            .sync("a")
+            .push(&["aaa".into(), "mmm".into(), "zzz".into()], false)
+            .unwrap();
+        let by_name: BTreeMap<&str, &Outcome> = outcomes(&reports).into_iter().collect();
+        assert_eq!(by_name.len(), 3);
+        assert_eq!(by_name["aaa"], &Outcome::Uploaded);
+        assert_eq!(by_name["zzz"], &Outcome::Uploaded);
+        assert!(matches!(by_name["mmm"], Outcome::Failed(_)));
+
+        assert_eq!(f.remote.get("aaa").unwrap(), b"aaa-cipher");
+        assert_eq!(f.remote.get("zzz").unwrap(), b"zzz-cipher");
+
+        let state = SyncState::load(&f.root.join("a/sync-state.toml")).unwrap();
+        assert_eq!(
+            state.get("test", "aaa"),
+            Some(sha256_hex(b"aaa-cipher").as_str())
+        );
+        assert_eq!(
+            state.get("test", "zzz"),
+            Some(sha256_hex(b"zzz-cipher").as_str())
+        );
     }
 }
