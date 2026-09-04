@@ -256,3 +256,41 @@ pub fn run(action: &SyncAction, vim_mode: bool) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn report(profile: &str, outcome: Outcome) -> Report {
+        Report {
+            profile: profile.to_string(),
+            outcome,
+        }
+    }
+
+    #[test]
+    fn a_reported_failure_makes_the_process_exit_non_zero() {
+        // A profile sync cannot name must not disappear into a "success"
+        // run: the engine reports it as `Failed`, and that has to become a
+        // non-zero exit here.
+        let reports = vec![
+            report("work", Outcome::Uploaded),
+            report(
+                ".hidden",
+                Outcome::Failed("profile name not supported by sync".into()),
+            ),
+        ];
+        let err = print_reports(&reports).unwrap_err().to_string();
+        assert!(err.contains("1 of 2"), "{}", err);
+    }
+
+    #[test]
+    fn a_clean_run_is_ok() {
+        let reports = vec![
+            report("work", Outcome::Uploaded),
+            report("staging", Outcome::UpToDate),
+            report("new", Outcome::Downloaded),
+        ];
+        assert!(print_reports(&reports).is_ok());
+    }
+}

@@ -200,9 +200,9 @@ fn dir_list(path: &Path) -> Result<Vec<RemoteEntry>> {
         else {
             continue;
         };
-        if check_name(name).is_err() {
-            continue;
-        }
+        // Names sync cannot handle are *not* filtered here: `reduce_listing`
+        // is the single place that validates them, so they get reported
+        // instead of vanishing between the remote and the report.
         out.push(RemoteEntry {
             name: name.to_string(),
             sha256: sha256_hex(&std::fs::read(&p)?),
@@ -273,15 +273,26 @@ pub struct Report {
     pub outcome: Outcome,
 }
 
-/// Names of every `<name>.env` in the profiles directory, sorted.
+/// Every `<name>.env` in the profiles directory, split into names sync can
+/// handle and names it cannot. Both lists are sorted.
+pub struct LocalProfiles {
+    pub names: Vec<String>,
+    /// Real profiles whose names `check_name` rejects. `envio create` is
+    /// more permissive than sync, so e.g. `.hidden.env` is a reachable
+    /// state; it must be reported, not dropped.
+    pub unsupported: Vec<String>,
+}
+
+/// Scan the profiles directory.
 ///
 /// Unlike `dir_list`, this never reads file contents — it only needs names,
 /// so a directory (or anything else unreadable as a profile) is skipped
 /// rather than aborting the whole listing. `read_dir` itself failing (a
 /// missing or unreadable profiles directory) is still a whole-operation
 /// failure and propagates.
-pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
-    let mut out = Vec::new();
+pub fn local_profiles(profiles_dir: &Path) -> Result<LocalProfiles> {
+    let mut names = Vec::new();
+    let mut unsupported = Vec::new();
     for entry in std::fs::read_dir(profiles_dir)? {
         let entry = entry?;
         let is_file = match entry.file_type() {
@@ -296,12 +307,33 @@ pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
             continue;
         };
         if check_name(name).is_err() {
+            unsupported.push(name.to_string());
             continue;
         }
-        out.push(name.to_string());
+        names.push(name.to_string());
     }
-    out.sort();
-    Ok(out)
+    names.sort();
+    unsupported.sort();
+    Ok(LocalProfiles { names, unsupported })
+}
+
+/// Names of every syncable `<name>.env` in the profiles directory, sorted.
+pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
+    Ok(local_profiles(profiles_dir)?.names)
+}
+
+/// Why a profile was left out of a batch. Reported, never swallowed: for a
+/// backup tool, "silently not backed up" is the worst possible outcome.
+const UNSUPPORTED_NAME: &str = "profile name not supported by sync \
+    (allowed: letters, digits, `-`, `_`, `.`; no leading or trailing `.`)";
+
+/// A remote listing reduced to `name -> sha256`, plus the names sync had to
+/// leave out. `unsupported` is returned rather than dropped so a remote
+/// profile that can never be pulled still shows up somewhere.
+#[derive(Debug)]
+struct RemoteListing {
+    hashes: BTreeMap<String, String>,
+    unsupported: Vec<String>,
 }
 
 /// Collapse a remote listing into `name -> sha256`.
@@ -313,15 +345,17 @@ pub fn local_profile_names(profiles_dir: &Path) -> Result<Vec<String>> {
 /// means the hash a decision is made from and the bytes a download returns
 /// can belong to different files. Refusing here keeps that ambiguity
 /// visible instead of quietly picking one.
-fn reduce_listing(entries: Vec<RemoteEntry>) -> Result<BTreeMap<String, String>> {
-    let mut out = BTreeMap::new();
+fn reduce_listing(entries: Vec<RemoteEntry>) -> Result<RemoteListing> {
+    let mut hashes = BTreeMap::new();
+    let mut unsupported = Vec::new();
     for RemoteEntry { name, sha256 } in entries {
-        // Skip anything a pull could not safely write, e.g. `..` or a
-        // dot-file someone dropped in the bucket by hand.
+        // Anything a pull could not safely write, e.g. `..` or a dot-file
+        // someone dropped in the bucket by hand.
         if check_name(&name).is_err() {
+            unsupported.push(name);
             continue;
         }
-        if let Some(previous) = out.insert(name.clone(), sha256.clone()) {
+        if let Some(previous) = hashes.insert(name.clone(), sha256.clone()) {
             return Err(Error::Sync(format!(
                 "remote holds two copies of profile `{}` (sha256 {} and {}); \
                  sync cannot tell which one is authoritative — delete the \
@@ -330,7 +364,25 @@ fn reduce_listing(entries: Vec<RemoteEntry>) -> Result<BTreeMap<String, String>>
             )));
         }
     }
-    Ok(out)
+    unsupported.sort();
+    Ok(RemoteListing {
+        hashes,
+        unsupported,
+    })
+}
+
+/// Print one warning per name sync must leave out.
+///
+/// `status` returns statuses, not report rows, so stderr is the only place
+/// it can surface a skipped profile. `push` and `pull` use report rows
+/// instead, which also make the process exit non-zero.
+fn warn_unsupported(side: &str, names: &[String]) {
+    for name in names {
+        eprintln!(
+            "warning: skipping {} `{}`: {}",
+            side, name, UNSUPPORTED_NAME
+        );
+    }
 }
 
 /// One remote bound to one local profiles directory and state file.
@@ -354,7 +406,7 @@ impl Sync<'_> {
         }
     }
 
-    fn remote_hashes(&self) -> Result<BTreeMap<String, String>> {
+    fn remote_hashes(&self) -> Result<RemoteListing> {
         reduce_listing(self.remote.list()?)
     }
 
@@ -366,14 +418,27 @@ impl Sync<'_> {
     pub fn push(&self, profiles: &[String], force: bool) -> Result<Vec<Report>> {
         Self::validate(profiles)?;
         let mut state = SyncState::load(self.state_path)?;
-        let remote = self.remote_hashes()?;
+        let listing = self.remote_hashes()?;
+        let remote = listing.hashes;
+        warn_unsupported("remote profile", &listing.unsupported);
+
+        let mut reports = Vec::new();
         let names = if profiles.is_empty() {
-            local_profile_names(self.profiles_dir)?
+            let local = local_profiles(self.profiles_dir)?;
+            // A local profile sync cannot name gets a report row, so it is
+            // visible in the output and makes the process exit non-zero.
+            // Reporting "success" while quietly not backing something up is
+            // the one failure a backup tool must never have.
+            reports.extend(local.unsupported.into_iter().map(|profile| Report {
+                profile,
+                outcome: Outcome::Failed(UNSUPPORTED_NAME.into()),
+            }));
+            local.names
         } else {
             profiles.to_vec()
         };
 
-        let mut reports = Vec::with_capacity(names.len());
+        reports.reserve(names.len());
         for name in names {
             let local = match self.local_bytes(&name) {
                 Ok(local) => local,
@@ -431,14 +496,33 @@ impl Sync<'_> {
     pub fn pull(&self, profiles: &[String], force: bool) -> Result<Vec<Report>> {
         Self::validate(profiles)?;
         let mut state = SyncState::load(self.state_path)?;
-        let remote = self.remote_hashes()?;
+        let listing = self.remote_hashes()?;
+        let remote = listing.hashes;
+
+        // A remote profile whose name sync cannot write locally is one the
+        // user can never retrieve. A batch pull reports it rather than
+        // claiming success with that profile missing; an explicitly named
+        // pull only concerns the names it was asked for.
+        let mut reports: Vec<Report> = if profiles.is_empty() {
+            listing
+                .unsupported
+                .into_iter()
+                .map(|profile| Report {
+                    profile,
+                    outcome: Outcome::Failed(UNSUPPORTED_NAME.into()),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
         let names: Vec<String> = if profiles.is_empty() {
             remote.keys().cloned().collect()
         } else {
             profiles.to_vec()
         };
 
-        let mut reports = Vec::with_capacity(names.len());
+        reports.reserve(names.len());
         for name in names {
             let local = match self.local_bytes(&name) {
                 Ok(local) => local,
@@ -513,8 +597,15 @@ impl Sync<'_> {
     /// Status of every profile present locally or on the remote, sorted.
     pub fn status(&self) -> Result<Vec<(String, Status)>> {
         let state = SyncState::load(self.state_path)?;
-        let remote = self.remote_hashes()?;
-        let mut names: Vec<String> = local_profile_names(self.profiles_dir)?;
+        let listing = self.remote_hashes()?;
+        let remote = listing.hashes;
+        let local = local_profiles(self.profiles_dir)?;
+        // `status` has no report rows to put these in, so warn on stderr:
+        // a profile sync will never carry should not be invisible here.
+        warn_unsupported("local profile", &local.unsupported);
+        warn_unsupported("remote profile", &listing.unsupported);
+
+        let mut names: Vec<String> = local.names;
         names.extend(remote.keys().cloned());
         names.sort();
         names.dedup();
@@ -1303,8 +1394,75 @@ mod engine_tests {
             },
         ])
         .unwrap();
-        assert_eq!(ok.len(), 2);
-        assert_eq!(ok["work"], "w");
+        assert_eq!(ok.hashes.len(), 2);
+        assert_eq!(ok.hashes["work"], "w");
+        assert!(ok.unsupported.is_empty());
+    }
+
+    #[test]
+    fn unsupported_remote_names_are_collected_not_dropped() {
+        let listing = reduce_listing(vec![
+            RemoteEntry {
+                name: "work".into(),
+                sha256: "w".into(),
+            },
+            RemoteEntry {
+                name: ".hidden".into(),
+                sha256: "h".into(),
+            },
+            RemoteEntry {
+                name: "C:evil".into(),
+                sha256: "e".into(),
+            },
+        ])
+        .unwrap();
+        assert_eq!(listing.hashes.keys().collect::<Vec<_>>(), vec!["work"]);
+        assert_eq!(
+            listing.unsupported,
+            vec![".hidden".to_string(), "C:evil".to_string()]
+        );
+    }
+
+    #[test]
+    fn unsupported_local_name_is_reported_not_silently_skipped() {
+        let f = Fixture::new("unsupported-local-name");
+        f.write("a", "work", b"cipher-work");
+        // `envio create .hidden` is accepted today, so this file is a
+        // reachable state, not a hand-crafted oddity.
+        f.write("a", ".hidden", b"cipher-hidden");
+
+        let reports = f.sync("a").push(&[], false).unwrap();
+        let by_name: BTreeMap<&str, &Outcome> = outcomes(&reports).into_iter().collect();
+        assert_eq!(by_name.len(), 2, "{:?}", reports);
+        assert_eq!(by_name["work"], &Outcome::Uploaded);
+        let Some(Outcome::Failed(msg)) = by_name.get(".hidden").copied() else {
+            panic!("`.hidden` must be reported, got {:?}", reports);
+        };
+        assert!(msg.contains("not supported by sync"), "{}", msg);
+
+        // A `Failed` row is what makes the CLI exit non-zero, so the report
+        // must not claim a clean run.
+        assert!(reports
+            .iter()
+            .any(|r| matches!(r.outcome, Outcome::Failed(_))));
+        // ...and it really was not backed up.
+        assert!(!f.root.join("remote/.hidden.env").exists());
+    }
+
+    #[test]
+    fn unsupported_remote_name_is_reported_on_pull() {
+        let f = Fixture::new("unsupported-remote-name");
+        std::fs::write(f.root.join("remote/.hidden.env"), b"cipher").unwrap();
+        f.write("a", "work", b"cipher-work");
+        f.sync("a").push(&[], false).unwrap();
+
+        let reports = f.sync("b").pull(&[], false).unwrap();
+        let by_name: BTreeMap<&str, &Outcome> = outcomes(&reports).into_iter().collect();
+        assert_eq!(by_name.len(), 2, "{:?}", reports);
+        assert_eq!(by_name["work"], &Outcome::Downloaded);
+        assert!(matches!(by_name[".hidden"], Outcome::Failed(_)));
+        // Nothing was written outside the supported name set.
+        assert!(!f.root.join("b/profiles/.hidden.env").exists());
     }
 
     #[test]
