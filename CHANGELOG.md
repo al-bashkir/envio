@@ -2,6 +2,23 @@
 
 # Unreleased
 
+## Features
+
+* `envio sync` pushes and pulls encrypted profiles to a remote, so the same profiles are available on several machines:
+
+  ```sh
+  envio sync remote add work   # interactive: s3, google_drive, or dir
+  envio sync push              # upload every local profile
+  envio sync pull              # on another machine, download every profile
+  envio sync status            # compare local and remote
+  ```
+
+  Three backends are supported: S3-compatible storage (AWS, MinIO, Cloudflare R2, Backblaze B2), Google Drive, and any mounted directory, which is how SMB, NFS and Proton Drive are used. Profiles move as ciphertext, so syncing never needs your passphrase or GPG key and the remote only ever holds encrypted bytes. `push` and `pull` take profile names to limit them to a subset, and `--remote` selects between several configured remotes.
+
+  Push and pull refuse to overwrite a side that changed since the last sync, comparing the SHA-256 of the encrypted bytes. `--force` overrides and is destructive in both directions: `push --force` discards the other machine's version, `pull --force` overwrites your local copy, neither with a backup. Sync never deletes, so a profile you remove locally survives on the remote and comes back with the next `envio sync pull`.
+
+  Remotes are configured in `~/.envio/sync.toml`. S3 credentials are never written there; they come from `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` or `~/.aws/credentials`. The Google Drive OAuth client secret and refresh token are stored in that file in plaintext, with mode `0600` on Unix. Google Drive needs an OAuth client you create yourself; see the README for the Google Cloud Console steps.
+
 ## Others
 
 * `envio sync` only accepts profile names made of letters, digits, spaces, `-`, `_` and `.`, and a name must not start or end with `.` or a space. Every other command is unaffected: a profile named outside that set still works normally with `create`, `load`, `list`, `add`, `update` and `export`. Only syncing refuses it, and `envio sync push` reports it as `profile name not supported by sync` and exits non-zero rather than skipping it quietly.
