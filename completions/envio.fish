@@ -13,38 +13,38 @@ complete -c envio -n "__fish_use_subcommand" -f -a "sync" -d 'Push and pull encr
 complete -c envio -n "__fish_use_subcommand" -f -a "version" -d 'Print the version'
 complete -c envio -n "__fish_use_subcommand" -f -a "completion" -d 'Generate shell completion scripts'
 complete -c envio -n "__fish_use_subcommand" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c envio -n "__fish_seen_subcommand_from create" -s f -l file-to-import-envs-from -r
-complete -c envio -n "__fish_seen_subcommand_from create" -s e -l envs -r
-complete -c envio -n "__fish_seen_subcommand_from create" -s g -l gpg-key-fingerprint -r
-complete -c envio -n "__fish_seen_subcommand_from create" -s c -l add-comments
-complete -c envio -n "__fish_seen_subcommand_from create" -s x -l add-expiration-date
+complete -c envio -n "__fish_seen_subcommand_from create" -s f -l file-to-import-envs-from -d 'Read the environment variables from a .env style file' -r
+complete -c envio -n "__fish_seen_subcommand_from create" -s e -l envs -d 'Environment variables to store, as space separated KEY=VALUE pairs' -r
+complete -c envio -n "__fish_seen_subcommand_from create" -s g -l gpg-key-fingerprint -d 'Encrypt with this GPG key instead of a passphrase' -r
+complete -c envio -n "__fish_seen_subcommand_from create" -s c -l add-comments -d 'Prompt for a comment for each environment variable'
+complete -c envio -n "__fish_seen_subcommand_from create" -s x -l add-expiration-date -d 'Prompt for an expiration date for each environment variable'
 complete -c envio -n "__fish_seen_subcommand_from create" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from add" -s e -l envs -r
-complete -c envio -n "__fish_seen_subcommand_from add" -s c -l add-comments
-complete -c envio -n "__fish_seen_subcommand_from add" -s x -l add-expiration-date
+complete -c envio -n "__fish_seen_subcommand_from add" -s e -l envs -d 'Environment variables to add, as space separated KEY=VALUE pairs' -r
+complete -c envio -n "__fish_seen_subcommand_from add" -s c -l add-comments -d 'Prompt for a comment for each environment variable'
+complete -c envio -n "__fish_seen_subcommand_from add" -s x -l add-expiration-date -d 'Prompt for an expiration date for each environment variable'
 complete -c envio -n "__fish_seen_subcommand_from add" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from load" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from unload" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from launch" -s c -l command -r
+complete -c envio -n "__fish_seen_subcommand_from launch" -s c -l command -d 'Command to run, as a single string' -r
 complete -c envio -n "__fish_seen_subcommand_from launch" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from remove" -s e -l envs-to-remove -r
+complete -c envio -n "__fish_seen_subcommand_from remove" -s e -l envs-to-remove -d 'Names of the environment variables to remove; omit to delete the whole profile' -r
 complete -c envio -n "__fish_seen_subcommand_from remove" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from list" -s n -l profile-name -r
-complete -c envio -n "__fish_seen_subcommand_from list" -s p -l profiles
-complete -c envio -n "__fish_seen_subcommand_from list" -s v -l no-pretty-print
-complete -c envio -n "__fish_seen_subcommand_from list" -s c -l display-comments
-complete -c envio -n "__fish_seen_subcommand_from list" -s x -l display-expiration-date
+complete -c envio -n "__fish_seen_subcommand_from list" -s n -l profile-name -d 'Name of the profile whose environment variables to list' -r
+complete -c envio -n "__fish_seen_subcommand_from list" -s p -l profiles -d 'List the stored profiles instead of environment variables'
+complete -c envio -n "__fish_seen_subcommand_from list" -s v -l no-pretty-print -d 'Print plain lines instead of a formatted table'
+complete -c envio -n "__fish_seen_subcommand_from list" -s c -l display-comments -d 'Show the comment attached to each environment variable'
+complete -c envio -n "__fish_seen_subcommand_from list" -s x -l display-expiration-date -d 'Show the expiration date of each environment variable'
 complete -c envio -n "__fish_seen_subcommand_from list" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from update" -s e -l envs -r
-complete -c envio -n "__fish_seen_subcommand_from update" -s v -l update-values
-complete -c envio -n "__fish_seen_subcommand_from update" -s c -l update-comments
-complete -c envio -n "__fish_seen_subcommand_from update" -s x -l update-expiration-date
+complete -c envio -n "__fish_seen_subcommand_from update" -s e -l envs -d 'Names of the environment variables to update, space separated' -r
+complete -c envio -n "__fish_seen_subcommand_from update" -s v -l update-values -d 'Prompt for a new value for each environment variable'
+complete -c envio -n "__fish_seen_subcommand_from update" -s c -l update-comments -d 'Prompt for a new comment for each environment variable'
+complete -c envio -n "__fish_seen_subcommand_from update" -s x -l update-expiration-date -d 'Prompt for a new expiration date for each environment variable'
 complete -c envio -n "__fish_seen_subcommand_from update" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from export" -s f -l file-to-export-to -r
-complete -c envio -n "__fish_seen_subcommand_from export" -s e -l envs -r
+complete -c envio -n "__fish_seen_subcommand_from export" -s f -l file-to-export-to -d 'Path to write to (defaults to .env)' -r
+complete -c envio -n "__fish_seen_subcommand_from export" -s e -l envs -d 'Names of the environment variables to export; omit to export all' -r
 complete -c envio -n "__fish_seen_subcommand_from export" -s h -l help -d 'Print help'
-complete -c envio -n "__fish_seen_subcommand_from import" -s f -l file-to-import-from -r
-complete -c envio -n "__fish_seen_subcommand_from import" -s u -l url -r
+complete -c envio -n "__fish_seen_subcommand_from import" -s f -l file-to-import-from -d 'Path to a locally stored profile file' -r
+complete -c envio -n "__fish_seen_subcommand_from import" -s u -l url -d 'URL to download the profile from' -r
 complete -c envio -n "__fish_seen_subcommand_from import" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from sync; and not __fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from push; and not __fish_seen_subcommand_from pull; and not __fish_seen_subcommand_from status; and not __fish_seen_subcommand_from help" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from sync; and not __fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from push; and not __fish_seen_subcommand_from pull; and not __fish_seen_subcommand_from status; and not __fish_seen_subcommand_from help" -f -a "remote" -d 'Manage sync remotes'
@@ -80,7 +80,7 @@ complete -c envio -n "__fish_seen_subcommand_from sync; and __fish_seen_subcomma
 complete -c envio -n "__fish_seen_subcommand_from sync; and __fish_seen_subcommand_from help; and __fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from remove" -f -a "add" -d 'Add a remote interactively'
 complete -c envio -n "__fish_seen_subcommand_from sync; and __fish_seen_subcommand_from help; and __fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from remove" -f -a "list" -d 'List configured remotes'
 complete -c envio -n "__fish_seen_subcommand_from sync; and __fish_seen_subcommand_from help; and __fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from add; and not __fish_seen_subcommand_from list; and not __fish_seen_subcommand_from remove" -f -a "remove" -d 'Remove a remote'
-complete -c envio -n "__fish_seen_subcommand_from version" -s v -l verbose
+complete -c envio -n "__fish_seen_subcommand_from version" -s v -l verbose -d 'Also print the build target, timestamp and commit'
 complete -c envio -n "__fish_seen_subcommand_from version" -l check -d 'Check for a newer release (requires network)'
 complete -c envio -n "__fish_seen_subcommand_from version" -s h -l help -d 'Print help'
 complete -c envio -n "__fish_seen_subcommand_from completion" -s h -l help -d 'Print help'
@@ -112,6 +112,6 @@ function __envio_profiles
     envio list --profiles --no-pretty-print 2>/dev/null
 end
 
-complete -c envio -n '__fish_seen_subcommand_from add load unload launch remove update export' -f -a '(__envio_profiles)'
-complete -c envio -n '__fish_seen_subcommand_from list' -s n -l profile-name -r -f -a '(__envio_profiles)'
+complete -c envio -n '__fish_seen_subcommand_from add load unload launch remove update export' -f -a '(__envio_profiles)' -d 'Stored profile'
+complete -c envio -n '__fish_seen_subcommand_from list' -s n -l profile-name -r -f -a '(__envio_profiles)' -d 'Name of the profile whose environment variables to list'
 # envio: dynamic profile completion END

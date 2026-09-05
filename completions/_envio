@@ -28,118 +28,118 @@ _envio() {
         case $line[1] in
             (create)
 _arguments "${_arguments_options[@]}" \
-'-f+[]:ENVS_FILE: ' \
-'--file-to-import-envs-from=[]:ENVS_FILE: ' \
-'*-e+[]:ENVS: ' \
-'*--envs=[]:ENVS: ' \
-'-g+[]:GPG: ' \
-'--gpg-key-fingerprint=[]:GPG: ' \
-'-c[]' \
-'--add-comments[]' \
-'-x[]' \
-'--add-expiration-date[]' \
+'-f+[Read the environment variables from a .env style file]:ENVS_FILE: ' \
+'--file-to-import-envs-from=[Read the environment variables from a .env style file]:ENVS_FILE: ' \
+'*-e+[Environment variables to store, as space separated KEY=VALUE pairs]:ENVS: ' \
+'*--envs=[Environment variables to store, as space separated KEY=VALUE pairs]:ENVS: ' \
+'-g+[Encrypt with this GPG key instead of a passphrase]:GPG: ' \
+'--gpg-key-fingerprint=[Encrypt with this GPG key instead of a passphrase]:GPG: ' \
+'-c[Prompt for a comment for each environment variable]' \
+'--add-comments[Prompt for a comment for each environment variable]' \
+'-x[Prompt for an expiration date for each environment variable]' \
+'--add-expiration-date[Prompt for an expiration date for each environment variable]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name -- Name of the profile to create:' \
 && ret=0
 ;;
 (add)
 _arguments "${_arguments_options[@]}" \
-'*-e+[]:ENVS: ' \
-'*--envs=[]:ENVS: ' \
-'-c[]' \
-'--add-comments[]' \
-'-x[]' \
-'--add-expiration-date[]' \
+'*-e+[Environment variables to add, as space separated KEY=VALUE pairs]:ENVS: ' \
+'*--envs=[Environment variables to add, as space separated KEY=VALUE pairs]:ENVS: ' \
+'-c[Prompt for a comment for each environment variable]' \
+'--add-comments[Prompt for a comment for each environment variable]' \
+'-x[Prompt for an expiration date for each environment variable]' \
+'--add-expiration-date[Prompt for an expiration date for each environment variable]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
+':profile_name -- Name of the profile to add to:_envio_profiles' \
 && ret=0
 ;;
 (load)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
+':profile_name -- Name of the profile to load:_envio_profiles' \
 && ret=0
 ;;
 (unload)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
+':profile_name -- Name of the profile to unload:_envio_profiles' \
 && ret=0
 ;;
 (launch)
 _arguments "${_arguments_options[@]}" \
-'-c+[]:STRING_COMMAND: ' \
-'--command=[]:STRING_COMMAND: ' \
+'-c+[Command to run, as a single string]:STRING_COMMAND: ' \
+'--command=[Command to run, as a single string]:STRING_COMMAND: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
-'*::COMMAND:' \
+':profile_name -- Name of the profile to run the command with:_envio_profiles' \
+'*::COMMAND -- Command to run, given after a -- separator:' \
 && ret=0
 ;;
 (remove)
 _arguments "${_arguments_options[@]}" \
-'*-e+[]:ENVS: ' \
-'*--envs-to-remove=[]:ENVS: ' \
+'*-e+[Names of the environment variables to remove; omit to delete the whole profile]:ENVS: ' \
+'*--envs-to-remove=[Names of the environment variables to remove; omit to delete the whole profile]:ENVS: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
+':profile_name -- Name of the profile to remove from, or to delete when no variables are given:_envio_profiles' \
 && ret=0
 ;;
 (list)
 _arguments "${_arguments_options[@]}" \
-'-n+[]:PROFILE_NAME:_envio_profiles ' \
-'--profile-name=[]:PROFILE_NAME:_envio_profiles ' \
-'-p[]' \
-'--profiles[]' \
-'-v[]' \
-'--no-pretty-print[]' \
-'-c[]' \
-'--display-comments[]' \
-'-x[]' \
-'--display-expiration-date[]' \
+'-n+[Name of the profile whose environment variables to list]:PROFILE_NAME:_envio_profiles ' \
+'--profile-name=[Name of the profile whose environment variables to list]:PROFILE_NAME:_envio_profiles ' \
+'-p[List the stored profiles instead of environment variables]' \
+'--profiles[List the stored profiles instead of environment variables]' \
+'-v[Print plain lines instead of a formatted table]' \
+'--no-pretty-print[Print plain lines instead of a formatted table]' \
+'-c[Show the comment attached to each environment variable]' \
+'--display-comments[Show the comment attached to each environment variable]' \
+'-x[Show the expiration date of each environment variable]' \
+'--display-expiration-date[Show the expiration date of each environment variable]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
 ;;
 (update)
 _arguments "${_arguments_options[@]}" \
-'*-e+[]:ENVS: ' \
-'*--envs=[]:ENVS: ' \
-'-v[]' \
-'--update-values[]' \
-'-c[]' \
-'--update-comments[]' \
-'-x[]' \
-'--update-expiration-date[]' \
+'*-e+[Names of the environment variables to update, space separated]:ENVS: ' \
+'*--envs=[Names of the environment variables to update, space separated]:ENVS: ' \
+'-v[Prompt for a new value for each environment variable]' \
+'--update-values[Prompt for a new value for each environment variable]' \
+'-c[Prompt for a new comment for each environment variable]' \
+'--update-comments[Prompt for a new comment for each environment variable]' \
+'-x[Prompt for a new expiration date for each environment variable]' \
+'--update-expiration-date[Prompt for a new expiration date for each environment variable]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
+':profile_name -- Name of the profile to update:_envio_profiles' \
 && ret=0
 ;;
 (export)
 _arguments "${_arguments_options[@]}" \
-'-f+[]:FILE: ' \
-'--file-to-export-to=[]:FILE: ' \
-'*-e+[]:ENVS: ' \
-'*--envs=[]:ENVS: ' \
+'-f+[Path to write to (defaults to .env)]:FILE: ' \
+'--file-to-export-to=[Path to write to (defaults to .env)]:FILE: ' \
+'*-e+[Names of the environment variables to export; omit to export all]:ENVS: ' \
+'*--envs=[Names of the environment variables to export; omit to export all]:ENVS: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:_envio_profiles' \
+':profile_name -- Name of the profile to export:_envio_profiles' \
 && ret=0
 ;;
 (import)
 _arguments "${_arguments_options[@]}" \
-'-f+[]:FILE: ' \
-'--file-to-import-from=[]:FILE: ' \
-'-u+[]:URL: ' \
-'--url=[]:URL: ' \
+'-f+[Path to a locally stored profile file]:FILE: ' \
+'--file-to-import-from=[Path to a locally stored profile file]:FILE: ' \
+'-u+[URL to download the profile from]:URL: ' \
+'--url=[URL to download the profile from]:URL: ' \
 '-h[Print help]' \
 '--help[Print help]' \
-':profile_name:' \
+':profile_name -- Name to store the imported profile under:' \
 && ret=0
 ;;
 (sync)
@@ -174,7 +174,7 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':name:' \
+':name -- Name for the new remote:' \
 && ret=0
 ;;
 (list)
@@ -187,7 +187,7 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':name:' \
+':name -- Name of the remote to remove:' \
 && ret=0
 ;;
 (help)
@@ -234,7 +234,7 @@ _arguments "${_arguments_options[@]}" \
 '--force[Overwrite even if the remote changed]' \
 '-h[Print help]' \
 '--help[Print help]' \
-'*::profiles:' \
+'*::profiles -- Profiles to upload; omit to upload all local profiles:' \
 && ret=0
 ;;
 (pull)
@@ -245,7 +245,7 @@ _arguments "${_arguments_options[@]}" \
 '--force[Overwrite even if the local copy changed]' \
 '-h[Print help]' \
 '--help[Print help]' \
-'*::profiles:' \
+'*::profiles -- Profiles to download; omit to download all remote profiles:' \
 && ret=0
 ;;
 (status)
@@ -322,8 +322,8 @@ esac
 ;;
 (version)
 _arguments "${_arguments_options[@]}" \
-'-v[]' \
-'--verbose[]' \
+'-v[Also print the build target, timestamp and commit]' \
+'--verbose[Also print the build target, timestamp and commit]' \
 '--check[Check for a newer release (requires network)]' \
 '-h[Print help]' \
 '--help[Print help]' \
@@ -333,7 +333,7 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-h[Print help]' \
 '--help[Print help]' \
-':shell:(bash elvish fish powershell zsh)' \
+':shell -- Shell to generate the completion script for:(bash elvish fish powershell zsh)' \
 && ret=0
 ;;
 (help)

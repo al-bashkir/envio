@@ -24,9 +24,14 @@ pub enum Command {
         override_usage = "envio create <PROFILE_NAME> [OPTIONS]"
     )]
     Create {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to create")]
         profile_name: String,
-        #[arg(required = false, long = "file-to-import-envs-from", short = 'f')]
+        #[arg(
+            required = false,
+            long = "file-to-import-envs-from",
+            short = 'f',
+            help = "Read the environment variables from a .env style file"
+        )]
         envs_file: Option<String>,
         #[arg(
             required = false,
@@ -34,13 +39,29 @@ pub enum Command {
             short = 'e',
             value_delimiter = ' ',
             num_args = 1..,
+            help = "Environment variables to store, as space separated KEY=VALUE pairs",
         )]
         envs: Option<Vec<String>>,
-        #[arg(required = false, long = "gpg-key-fingerprint", short = 'g')]
+        #[arg(
+            required = false,
+            long = "gpg-key-fingerprint",
+            short = 'g',
+            help = "Encrypt with this GPG key instead of a passphrase"
+        )]
         gpg: Option<String>,
-        #[arg(required = false, long = "add-comments", short = 'c')]
+        #[arg(
+            required = false,
+            long = "add-comments",
+            short = 'c',
+            help = "Prompt for a comment for each environment variable"
+        )]
         add_comments: bool,
-        #[arg(required = false, long = "add-expiration-date", short = 'x')]
+        #[arg(
+            required = false,
+            long = "add-expiration-date",
+            short = 'x',
+            help = "Prompt for an expiration date for each environment variable"
+        )]
         add_expiration_date: bool,
     },
     #[command(
@@ -49,7 +70,7 @@ pub enum Command {
         override_usage = "envio add <PROFILE_NAME> [OPTIONS]"
     )]
     Add {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to add to")]
         profile_name: String,
         #[arg(
             required = true,
@@ -57,11 +78,22 @@ pub enum Command {
             short = 'e',
             value_delimiter = ' ',
             num_args = 1..,
+            help = "Environment variables to add, as space separated KEY=VALUE pairs",
         )]
         envs: Vec<String>,
-        #[arg(required = false, long = "add-comments", short = 'c')]
+        #[arg(
+            required = false,
+            long = "add-comments",
+            short = 'c',
+            help = "Prompt for a comment for each environment variable"
+        )]
         add_comments: bool,
-        #[arg(required = false, long = "add-expiration-date", short = 'x')]
+        #[arg(
+            required = false,
+            long = "add-expiration-date",
+            short = 'x',
+            help = "Prompt for an expiration date for each environment variable"
+        )]
         add_expiration_date: bool,
     },
     #[command(
@@ -69,12 +101,12 @@ pub enum Command {
         about = "Load all environment variables in a profile for use in your terminal sessions"
     )]
     Load {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to load")]
         profile_name: String,
     },
     #[command(name = "unload", about = "Unload a profile")]
     Unload {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to unload")]
         profile_name: String,
     },
     #[command(
@@ -83,7 +115,7 @@ pub enum Command {
         override_usage = "envio launch <PROFILE_NAME> <--command STRING_COMMAND | -- COMMAND>"
     )]
     Launch {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to run the command with")]
         profile_name: String,
         #[command(flatten)]
         command: LaunchCommandArg,
@@ -94,9 +126,13 @@ pub enum Command {
         override_usage = "envio remove <PROFILE_NAME> [OPTIONS]"
     )]
     Remove {
-        #[arg(required = true)]
+        #[arg(
+            required = true,
+            help = "Name of the profile to remove from, or to delete when no variables are given"
+        )]
         profile_name: String,
-        #[arg(required = false, long = "envs-to-remove", short = 'e', value_delimiter = ' ', num_args = 1..)]
+        #[arg(required = false, long = "envs-to-remove", short = 'e', value_delimiter = ' ', num_args = 1..,
+            help = "Names of the environment variables to remove; omit to delete the whole profile")]
         envs: Option<Vec<String>>,
     },
     #[command(
@@ -104,15 +140,40 @@ pub enum Command {
         about = "List all the environment variables in a profile or all the profiles currenty stored"
     )]
     List {
-        #[arg(required = false, long = "profiles", short = 'p')]
+        #[arg(
+            required = false,
+            long = "profiles",
+            short = 'p',
+            help = "List the stored profiles instead of environment variables"
+        )]
         profiles: bool,
-        #[arg(required = false, long = "profile-name", short = 'n')]
+        #[arg(
+            required = false,
+            long = "profile-name",
+            short = 'n',
+            help = "Name of the profile whose environment variables to list"
+        )]
         profile_name: Option<String>,
-        #[arg(required = false, long = "no-pretty-print", short = 'v')]
+        #[arg(
+            required = false,
+            long = "no-pretty-print",
+            short = 'v',
+            help = "Print plain lines instead of a formatted table"
+        )]
         no_pretty_print: bool,
-        #[arg(required = false, long = "display-comments", short = 'c')]
+        #[arg(
+            required = false,
+            long = "display-comments",
+            short = 'c',
+            help = "Show the comment attached to each environment variable"
+        )]
         display_comments: bool,
-        #[arg(required = false, long = "display-expiration-date", short = 'x')]
+        #[arg(
+            required = false,
+            long = "display-expiration-date",
+            short = 'x',
+            help = "Show the expiration date of each environment variable"
+        )]
         display_expiration_date: bool,
     },
     #[command(
@@ -121,7 +182,7 @@ pub enum Command {
         override_usage = "envio update <PROFILE_NAME> [OPTIONS]"
     )]
     Update {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to update")]
         profile_name: String,
         #[arg(
             required = true,
@@ -129,13 +190,29 @@ pub enum Command {
             short = 'e',
             value_delimiter = ' ',
             num_args = 1..,
+            help = "Names of the environment variables to update, space separated",
         )]
         envs: Vec<String>,
-        #[arg(required = false, long = "update-values", short = 'v')]
+        #[arg(
+            required = false,
+            long = "update-values",
+            short = 'v',
+            help = "Prompt for a new value for each environment variable"
+        )]
         update_values: bool,
-        #[arg(required = false, long = "update-comments", short = 'c')]
+        #[arg(
+            required = false,
+            long = "update-comments",
+            short = 'c',
+            help = "Prompt for a new comment for each environment variable"
+        )]
         update_comments: bool,
-        #[arg(required = false, long = "update-expiration-date", short = 'x')]
+        #[arg(
+            required = false,
+            long = "update-expiration-date",
+            short = 'x',
+            help = "Prompt for a new expiration date for each environment variable"
+        )]
         update_expiration_date: bool,
     },
     #[command(
@@ -144,9 +221,14 @@ pub enum Command {
         override_usage = "envio export <PROFILE_NAME> [OPTIONS]"
     )]
     Export {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the profile to export")]
         profile_name: String,
-        #[arg(required = false, long = "file-to-export-to", short = 'f')]
+        #[arg(
+            required = false,
+            long = "file-to-export-to",
+            short = 'f',
+            help = "Path to write to (defaults to .env)"
+        )]
         file: Option<String>,
         #[arg(
             required = false,
@@ -154,6 +236,7 @@ pub enum Command {
             short = 'e',
             value_delimiter = ' ',
             num_args = 1..,
+            help = "Names of the environment variables to export; omit to export all",
         )]
         envs: Option<Vec<String>>,
     },
@@ -163,11 +246,21 @@ pub enum Command {
         override_usage = "envio import <PROFILE_NAME> [OPTIONS]"
     )]
     Import {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name to store the imported profile under")]
         profile_name: String,
-        #[arg(required = false, long = "file-to-import-from", short = 'f')]
+        #[arg(
+            required = false,
+            long = "file-to-import-from",
+            short = 'f',
+            help = "Path to a locally stored profile file"
+        )]
         file: Option<String>,
-        #[arg(required = false, long = "url", short = 'u')]
+        #[arg(
+            required = false,
+            long = "url",
+            short = 'u',
+            help = "URL to download the profile from"
+        )]
         url: Option<String>,
     },
     #[command(
@@ -180,7 +273,12 @@ pub enum Command {
     },
     #[command(name = "version", about = "Print the version")]
     Version {
-        #[arg(required = false, long = "verbose", short = 'v')]
+        #[arg(
+            required = false,
+            long = "verbose",
+            short = 'v',
+            help = "Also print the build target, timestamp and commit"
+        )]
         verbose: bool,
         #[arg(
             required = false,
@@ -195,7 +293,11 @@ pub enum Command {
         override_usage = "envio completion <SHELL>"
     )]
     Completion {
-        #[arg(required = true, value_enum)]
+        #[arg(
+            required = true,
+            value_enum,
+            help = "Shell to generate the completion script for"
+        )]
         shell: Shell,
     },
 }
@@ -203,9 +305,18 @@ pub enum Command {
 #[derive(clap::Args, Debug)]
 #[group(required = true, multiple = false)]
 pub struct LaunchCommandArg {
-    #[arg(long = "command", short = 'c', name = "STRING_COMMAND")]
+    #[arg(
+        long = "command",
+        short = 'c',
+        name = "STRING_COMMAND",
+        help = "Command to run, as a single string"
+    )]
     argument: Option<String>,
-    #[arg(last = true, name = "COMMAND")]
+    #[arg(
+        last = true,
+        name = "COMMAND",
+        help = "Command to run, given after a -- separator"
+    )]
     positional: Vec<String>,
 }
 
@@ -230,6 +341,7 @@ pub enum SyncAction {
         override_usage = "envio sync push [PROFILE]... [OPTIONS]"
     )]
     Push {
+        #[arg(help = "Profiles to upload; omit to upload all local profiles")]
         profiles: Vec<String>,
         #[arg(long, short = 'r', help = "Remote name from sync.toml")]
         remote: Option<String>,
@@ -241,6 +353,7 @@ pub enum SyncAction {
         override_usage = "envio sync pull [PROFILE]... [OPTIONS]"
     )]
     Pull {
+        #[arg(help = "Profiles to download; omit to download all remote profiles")]
         profiles: Vec<String>,
         #[arg(long, short = 'r', help = "Remote name from sync.toml")]
         remote: Option<String>,
@@ -258,14 +371,14 @@ pub enum SyncAction {
 pub enum RemoteAction {
     #[command(about = "Add a remote interactively")]
     Add {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name for the new remote")]
         name: String,
     },
     #[command(about = "List configured remotes")]
     List,
     #[command(about = "Remove a remote")]
     Remove {
-        #[arg(required = true)]
+        #[arg(required = true, help = "Name of the remote to remove")]
         name: String,
     },
 }
