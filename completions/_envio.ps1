@@ -40,27 +40,27 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;create' {
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'f')
-            [CompletionResult]::new('--file-to-import-envs-from', 'file-to-import-envs-from', [CompletionResultType]::ParameterName, 'file-to-import-envs-from')
-            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'e')
-            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'envs')
-            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'g')
-            [CompletionResult]::new('--gpg-key-fingerprint', 'gpg-key-fingerprint', [CompletionResultType]::ParameterName, 'gpg-key-fingerprint')
-            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'c')
-            [CompletionResult]::new('--add-comments', 'add-comments', [CompletionResultType]::ParameterName, 'add-comments')
-            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'x')
-            [CompletionResult]::new('--add-expiration-date', 'add-expiration-date', [CompletionResultType]::ParameterName, 'add-expiration-date')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Read the environment variables from a .env style file')
+            [CompletionResult]::new('--file-to-import-envs-from', 'file-to-import-envs-from', [CompletionResultType]::ParameterName, 'Read the environment variables from a .env style file')
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Environment variables to store, as space separated KEY=VALUE pairs')
+            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'Environment variables to store, as space separated KEY=VALUE pairs')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Encrypt with this GPG key instead of a passphrase')
+            [CompletionResult]::new('--gpg-key-fingerprint', 'gpg-key-fingerprint', [CompletionResultType]::ParameterName, 'Encrypt with this GPG key instead of a passphrase')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Prompt for a comment for each environment variable')
+            [CompletionResult]::new('--add-comments', 'add-comments', [CompletionResultType]::ParameterName, 'Prompt for a comment for each environment variable')
+            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'Prompt for an expiration date for each environment variable')
+            [CompletionResult]::new('--add-expiration-date', 'add-expiration-date', [CompletionResultType]::ParameterName, 'Prompt for an expiration date for each environment variable')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
         'envio;add' {
-            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'e')
-            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'envs')
-            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'c')
-            [CompletionResult]::new('--add-comments', 'add-comments', [CompletionResultType]::ParameterName, 'add-comments')
-            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'x')
-            [CompletionResult]::new('--add-expiration-date', 'add-expiration-date', [CompletionResultType]::ParameterName, 'add-expiration-date')
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Environment variables to add, as space separated KEY=VALUE pairs')
+            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'Environment variables to add, as space separated KEY=VALUE pairs')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Prompt for a comment for each environment variable')
+            [CompletionResult]::new('--add-comments', 'add-comments', [CompletionResultType]::ParameterName, 'Prompt for a comment for each environment variable')
+            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'Prompt for an expiration date for each environment variable')
+            [CompletionResult]::new('--add-expiration-date', 'add-expiration-date', [CompletionResultType]::ParameterName, 'Prompt for an expiration date for each environment variable')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
@@ -85,8 +85,8 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;launch' {
-            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'c')
-            [CompletionResult]::new('--command', 'command', [CompletionResultType]::ParameterName, 'command')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Command to run, as a single string')
+            [CompletionResult]::new('--command', 'command', [CompletionResultType]::ParameterName, 'Command to run, as a single string')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
@@ -95,8 +95,8 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;remove' {
-            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'e')
-            [CompletionResult]::new('--envs-to-remove', 'envs-to-remove', [CompletionResultType]::ParameterName, 'envs-to-remove')
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Names of the environment variables to remove; omit to delete the whole profile')
+            [CompletionResult]::new('--envs-to-remove', 'envs-to-remove', [CompletionResultType]::ParameterName, 'Names of the environment variables to remove; omit to delete the whole profile')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
@@ -105,16 +105,16 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;list' {
-            [CompletionResult]::new('-n', 'n', [CompletionResultType]::ParameterName, 'n')
-            [CompletionResult]::new('--profile-name', 'profile-name', [CompletionResultType]::ParameterName, 'profile-name')
-            [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'p')
-            [CompletionResult]::new('--profiles', 'profiles', [CompletionResultType]::ParameterName, 'profiles')
-            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'v')
-            [CompletionResult]::new('--no-pretty-print', 'no-pretty-print', [CompletionResultType]::ParameterName, 'no-pretty-print')
-            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'c')
-            [CompletionResult]::new('--display-comments', 'display-comments', [CompletionResultType]::ParameterName, 'display-comments')
-            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'x')
-            [CompletionResult]::new('--display-expiration-date', 'display-expiration-date', [CompletionResultType]::ParameterName, 'display-expiration-date')
+            [CompletionResult]::new('-n', 'n', [CompletionResultType]::ParameterName, 'Name of the profile whose environment variables to list')
+            [CompletionResult]::new('--profile-name', 'profile-name', [CompletionResultType]::ParameterName, 'Name of the profile whose environment variables to list')
+            [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'List the stored profiles instead of environment variables')
+            [CompletionResult]::new('--profiles', 'profiles', [CompletionResultType]::ParameterName, 'List the stored profiles instead of environment variables')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Print plain lines instead of a formatted table')
+            [CompletionResult]::new('--no-pretty-print', 'no-pretty-print', [CompletionResultType]::ParameterName, 'Print plain lines instead of a formatted table')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Show the comment attached to each environment variable')
+            [CompletionResult]::new('--display-comments', 'display-comments', [CompletionResultType]::ParameterName, 'Show the comment attached to each environment variable')
+            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'Show the expiration date of each environment variable')
+            [CompletionResult]::new('--display-expiration-date', 'display-expiration-date', [CompletionResultType]::ParameterName, 'Show the expiration date of each environment variable')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             $prev = if ($commandElements.Count -ge 2) { $commandElements[$commandElements.Count - 2].Value } else { '' }
@@ -126,14 +126,14 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;update' {
-            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'e')
-            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'envs')
-            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'v')
-            [CompletionResult]::new('--update-values', 'update-values', [CompletionResultType]::ParameterName, 'update-values')
-            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'c')
-            [CompletionResult]::new('--update-comments', 'update-comments', [CompletionResultType]::ParameterName, 'update-comments')
-            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'x')
-            [CompletionResult]::new('--update-expiration-date', 'update-expiration-date', [CompletionResultType]::ParameterName, 'update-expiration-date')
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Names of the environment variables to update, space separated')
+            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'Names of the environment variables to update, space separated')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Prompt for a new value for each environment variable')
+            [CompletionResult]::new('--update-values', 'update-values', [CompletionResultType]::ParameterName, 'Prompt for a new value for each environment variable')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Prompt for a new comment for each environment variable')
+            [CompletionResult]::new('--update-comments', 'update-comments', [CompletionResultType]::ParameterName, 'Prompt for a new comment for each environment variable')
+            [CompletionResult]::new('-x', 'x', [CompletionResultType]::ParameterName, 'Prompt for a new expiration date for each environment variable')
+            [CompletionResult]::new('--update-expiration-date', 'update-expiration-date', [CompletionResultType]::ParameterName, 'Prompt for a new expiration date for each environment variable')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
@@ -142,10 +142,10 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;export' {
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'f')
-            [CompletionResult]::new('--file-to-export-to', 'file-to-export-to', [CompletionResultType]::ParameterName, 'file-to-export-to')
-            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'e')
-            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'envs')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Path to write to (defaults to .env)')
+            [CompletionResult]::new('--file-to-export-to', 'file-to-export-to', [CompletionResultType]::ParameterName, 'Path to write to (defaults to .env)')
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Names of the environment variables to export; omit to export all')
+            [CompletionResult]::new('--envs', 'envs', [CompletionResultType]::ParameterName, 'Names of the environment variables to export; omit to export all')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             envio list --profiles --no-pretty-print 2>$null | ForEach-Object {
@@ -154,10 +154,10 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;import' {
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'f')
-            [CompletionResult]::new('--file-to-import-from', 'file-to-import-from', [CompletionResultType]::ParameterName, 'file-to-import-from')
-            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'u')
-            [CompletionResult]::new('--url', 'url', [CompletionResultType]::ParameterName, 'url')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Path to a locally stored profile file')
+            [CompletionResult]::new('--file-to-import-from', 'file-to-import-from', [CompletionResultType]::ParameterName, 'Path to a locally stored profile file')
+            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'URL to download the profile from')
+            [CompletionResult]::new('--url', 'url', [CompletionResultType]::ParameterName, 'URL to download the profile from')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')
             break
@@ -276,8 +276,8 @@ Register-ArgumentCompleter -Native -CommandName 'envio' -ScriptBlock {
             break
         }
         'envio;version' {
-            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'v')
-            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'verbose')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Also print the build target, timestamp and commit')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Also print the build target, timestamp and commit')
             [CompletionResult]::new('--check', 'check', [CompletionResultType]::ParameterName, 'Check for a newer release (requires network)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help')

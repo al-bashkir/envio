@@ -197,23 +197,22 @@ fn inject_zsh(path: &std::path::Path) -> std::io::Result<()> {
             .unwrap_or(false);
         let in_list_stanza = current_stanza.as_deref() == Some("list");
 
-        if in_target_stanza && line.contains("':profile_name:'") {
-            out.push_str(&line.replace("':profile_name:'", "':profile_name:_envio_profiles'"));
-            continue;
-        }
-        if in_list_stanza {
-            if line.contains("'-n+[]:PROFILE_NAME: '") {
-                out.push_str(&line.replace(
-                    "'-n+[]:PROFILE_NAME: '",
-                    "'-n+[]:PROFILE_NAME:_envio_profiles '",
-                ));
+        // The help text clap writes into these specs changes whenever the arg
+        // docs change, so match on structure (the trailing action slot) rather
+        // than on a full literal spec.
+        if in_target_stanza && trimmed.starts_with("':profile_name") {
+            if let Some(patched) = append_zsh_action(line, ":'", ":_envio_profiles'") {
+                out.push_str(&patched);
                 continue;
             }
-            if line.contains("'--profile-name=[]:PROFILE_NAME: '") {
-                out.push_str(&line.replace(
-                    "'--profile-name=[]:PROFILE_NAME: '",
-                    "'--profile-name=[]:PROFILE_NAME:_envio_profiles '",
-                ));
+        }
+        if in_list_stanza
+            && (trimmed.starts_with("'-n+[") || trimmed.starts_with("'--profile-name=["))
+        {
+            if let Some(patched) =
+                append_zsh_action(line, ":PROFILE_NAME: '", ":PROFILE_NAME:_envio_profiles '")
+            {
+                out.push_str(&patched);
                 continue;
             }
         }
@@ -225,6 +224,17 @@ fn inject_zsh(path: &std::path::Path) -> std::io::Result<()> {
     std::fs::write(path, out)
 }
 
+/// Replace the last occurrence of `pat` in a zsh arg spec, used to hang the
+/// `_envio_profiles` completer off an otherwise empty action slot.
+fn append_zsh_action(line: &str, pat: &str, replacement: &str) -> Option<String> {
+    let at = line.rfind(pat)?;
+    let mut patched = String::with_capacity(line.len() + replacement.len());
+    patched.push_str(&line[..at]);
+    patched.push_str(replacement);
+    patched.push_str(&line[at + pat.len()..]);
+    Some(patched)
+}
+
 const FISH_OVERRIDE: &str = r#"
 
 # envio: dynamic profile completion BEGIN
@@ -232,8 +242,8 @@ function __envio_profiles
     envio list --profiles --no-pretty-print 2>/dev/null
 end
 
-complete -c envio -n '__fish_seen_subcommand_from add load unload launch remove update export' -f -a '(__envio_profiles)'
-complete -c envio -n '__fish_seen_subcommand_from list' -s n -l profile-name -r -f -a '(__envio_profiles)'
+complete -c envio -n '__fish_seen_subcommand_from add load unload launch remove update export' -f -a '(__envio_profiles)' -d 'Stored profile'
+complete -c envio -n '__fish_seen_subcommand_from list' -s n -l profile-name -r -f -a '(__envio_profiles)' -d 'Name of the profile whose environment variables to list'
 # envio: dynamic profile completion END
 "#;
 
