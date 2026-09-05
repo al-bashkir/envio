@@ -2,6 +2,23 @@
 
 # Unreleased
 
+## Others
+
+* `envio sync` only accepts profile names made of letters, digits, spaces, `-`, `_` and `.`, and a name must not start or end with `.` or a space. Every other command is unaffected: a profile named outside that set still works normally with `create`, `load`, `list`, `add`, `update` and `export`. Only syncing refuses it, and `envio sync push` reports it as `profile name not supported by sync` and exits non-zero rather than skipping it quietly.
+
+  Names are restricted because a profile name becomes an object key on the remote and a file name on every machine you sync to. Non-ASCII names such as `café` are excluded specifically because macOS and Linux normalize Unicode filenames differently, so one visible name could end up as two separate remote copies.
+
+  To sync a profile whose name is not supported, re-create it under a supported name:
+
+  ```sh
+  envio export old-name -f /tmp/profile.env
+  envio create new-name -f /tmp/profile.env
+  envio remove old-name
+  rm /tmp/profile.env
+  ```
+
+  Renaming the file in `~/.envio/profiles/` directly does not work. A profile stores its own name and path inside the encrypted payload, so later edits would write back to the old file.
+
 # v0.7.0
 
 ## Features
